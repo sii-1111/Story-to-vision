@@ -24,6 +24,8 @@ type Screenplay = {
 type StoryResponse = { status: "completed"; screenplay: Screenplay };
 type VideoJob = { job_id: string; status: "queued" | "starting" | "processing" | "succeeded" | "failed" | "canceled" | "unknown"; video_url: string | null; error: string | null };
 type EpisodeExport = { episode_id: string; download_url: string; format: "mp4"; aspect_ratio: "9:16"; subtitles_included: boolean };
+type ProjectSummary = { id: string; title: string; story: string; genre: string; visual_style: string; language: string; created_at: string; updated_at: string; episode_count: number; character_count: number };
+type SavedProject = ProjectSummary & { episodes: { id: string; episode_number: number; title: string; screenplay: Screenplay; created_at: string; updated_at: string }[]; characters: (Character & { updated_at: string })[]; generation_jobs: { id: string; scene_number: number; provider_job_id: string; status: VideoJob["status"]; video_url: string | null; error: string | null }[] };
 
 const inspiration = "When Mira returns to her coastal hometown for her sister's engagement, she discovers that the quiet photographer hired for the ceremony is the boy who disappeared from her life seven years ago. They agree to act like strangers, but an old letter hidden inside the family house threatens to reveal why he left.";
 const genres = ["Romance", "Mystery", "Drama", "Fantasy", "Thriller", "Slice of life"];
@@ -53,11 +55,95 @@ export default function CreatorStudio() {
   const [checkingVideo, setCheckingVideo] = useState<number | null>(null);
   const [assemblingEpisode, setAssemblingEpisode] = useState(false);
   const [episodeExport, setEpisodeExport] = useState<EpisodeExport | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [savingProject, setSavingProject] = useState(false);
+  const [loadingProject, setLoadingProject] = useState<string | null>(null);
 
   const wordCount = useMemo(() => story.trim() ? story.trim().split(/\s+/).length : 0, [story]);
   const canAssembleEpisode = Boolean(
     screenplay && screenplay.scenes.every(scene => videoJobs[scene.scene_number]?.status === "succeeded"),
   );
+
+
+  async function refreshProjects() {
+    const response = await fetch("/api/projects");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Could not load saved projects.");
+    setProjects((payload.projects || []) as ProjectSummary[]);
+  }
+
+  async function saveCurrentProject() {
+    if (story.trim().length < 30) {
+      setError("Add at least 30 characters of story before saving this project.");
+      return;
+    }
+    setSavingProject(true);
+    setError("");
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim() || screenplay?.title || "Untitled story",
+          story: story.trim(),
+          screenplay,
+          project_id: projectId,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Could not save this project.");
+      const saved = payload.project as SavedProject;
+      setProjectId(saved.id);
+      await refreshProjects();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save this project.");
+    } finally {
+      setSavingProject(false);
+    }
+  }
+
+  async function openSavedProject(id: string) {
+    setLoadingProject(id);
+    setError("");
+    try {
+      const response = await fetch(`/api/projects/${encodeURIComponent(id)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "Could not open this project.");
+      const saved = payload.project as SavedProject;
+      setProjectId(saved.id);
+      setTitle(saved.title);
+      setStory(saved.story);
+      setGenre(saved.genre.charAt(0).toUpperCase() + saved.genre.slice(1));
+      setStyle(saved.visual_style);
+      setLanguage(saved.language);
+      const latest = saved.episodes[0]?.screenplay || null;
+      setScreenplay(latest);
+      setVideoJobs(latest ? Object.fromEntries(
+        saved.generation_jobs.filter(job => job.scene_number <= latest.scenes.length).map(job => [
+          job.scene_number,
+          { job_id: job.provider_job_id, status: job.status, video_url: job.video_url, error: job.error } as VideoJob,
+        ]),
+      ) : {});
+      setEpisodeExport(null);
+      setShowLibrary(false);
+      setActiveTab("script");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not open this project.");
+    } finally {
+      setLoadingProject(null);
+    }
+  }
+
+  async function toggleLibrary() {
+    const next = !showLibrary;
+    setShowLibrary(next);
+    if (next) {
+      try { await refreshProjects(); }
+      catch (err) { setError(err instanceof Error ? err.message : "Could not load saved projects."); }
+    }
+  }
 
   async function createScreenplay() {
     setError("");
@@ -164,7 +250,7 @@ export default function CreatorStudio() {
     setError("");
     setCheckingVideo(sceneNumber);
     try {
-      const response = await fetch(`/api/videos/jobs/${encodeURIComponent(job.job_id)}`);
+      const response = await fetch(`/api/videos/jobs/${encodeURIComponent(job.job_id)}${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(typeof payload.detail === "string" ? payload.detail : "Could not check video status.");
@@ -214,8 +300,8 @@ export default function CreatorStudio() {
         <button className="workspace-switch"><span className="workspace-avatar">S</span><span><strong>Seeta’s Studio</strong><small>Personal workspace</small></span><ChevronDown size={15} /></button>
         <div className="nav-label">CREATE</div>
         <button className="nav-item active"><WandSparkles size={17} /> Story studio <span className="nav-dot" /></button>
-        <button className="nav-item" onClick={() => setError("Episode library is coming in a future milestone.")}><Film size={17} /> My episodes</button>
-        <button className="nav-item" onClick={() => setError("Character universe is coming in a future milestone.")}><Layers3 size={17} /> Character universe</button>
+        <button className="nav-item" onClick={toggleLibrary}><Film size={17} /> My episodes</button>
+        <button className="nav-item" onClick={() => { setActiveTab("cast"); void toggleLibrary(); }}><Layers3 size={17} /> Character universe</button>
         <div className="sidebar-bottom">
           <div className="help-card"><span className="help-icon"><CircleHelp size={17} /></span><strong>Your story, your vision.</strong><p>Start with a feeling. Build a world around it.</p><button onClick={() => { setStory(inspiration); setError(""); }}>Try an example <ArrowRight size={14} /></button></div>
           <button className="nav-item" onClick={() => setShowSettings(v => !v)}><Settings2 size={17} /> Studio settings</button>
@@ -265,6 +351,8 @@ export default function CreatorStudio() {
               </div>
               <div className="preview-stats"><div><span>FORMAT</span><strong>9:16 <small>vertical</small></strong></div><div><span>EST. LENGTH</span><strong>{duration}s <small>episode</small></strong></div><div><span>SCENES</span><strong>{screenplay ? screenplay.scenes.length.toString().padStart(2, "0") : "—"} <small>{screenplay ? "planned" : "pending"}</small></strong></div></div>
               <div className="preview-tabs"><button className={activeTab === "script" ? "active" : ""} onClick={() => setActiveTab("script")}><BookOpen size={15} /> Script {screenplay && <span>{screenplay.scenes.length}</span>}</button><button className={activeTab === "cast" ? "active" : ""} onClick={() => setActiveTab("cast")}><Layers3 size={15} /> Cast {screenplay && <span>{screenplay.characters.length}</span>}</button></div>
+              <div className="project-actions"><span>{projectId ? "Saved project" : "Unsaved draft"}</span><button onClick={saveCurrentProject} disabled={savingProject}>{savingProject ? <LoaderCircle className="spin" size={14} /> : <Check size={14} />}{savingProject ? "Saving…" : "Save project"}</button></div>
+              {showLibrary && <section className="project-library"><div className="project-library-heading"><strong>My story universe</strong><button onClick={() => setShowLibrary(false)} aria-label="Close project library"><X size={14} /></button></div>{projects.length === 0 ? <p>No saved projects yet. Shape a screenplay and save your first story.</p> : projects.map(project => <button className="saved-project-row" key={project.id} onClick={() => openSavedProject(project.id)} disabled={loadingProject !== null}><span className="saved-project-icon"><Film size={15} /></span><span className="saved-project-copy"><strong>{project.title}</strong><small>{project.episode_count} screenplay · {project.character_count} characters · Updated {new Date(project.updated_at).toLocaleDateString()}</small></span>{loadingProject === project.id ? <LoaderCircle className="spin" size={14} /> : <ArrowRight size={14} />}</button>)}</section>}
               <div className="preview-body">
                 {!screenplay ? <div className="empty-preview"><div className="empty-icon"><Film size={23} /></div><strong>Your first scene is waiting.</strong><p>Once you shape your story, your screenplay and characters will appear here.</p><div className="empty-steps"><span><Check size={13} /> Story idea</span><ArrowRight size={13} /><span><Clock3 size={13} /> Scene breakdown</span></div></div> : activeTab === "script" ? <div className="scene-list">{screenplay.scenes.map(scene => <article className="scene-card" key={scene.scene_number}><div className="scene-card-top"><span>SCENE {String(scene.scene_number).padStart(2, "0")}</span><span><Clock3 size={12} /> {scene.duration_seconds}s</span></div><h4>{scene.location}</h4><label className="scene-edit-label" htmlFor={`scene-action-${scene.scene_number}`}>Scene action · editable</label><textarea id={`scene-action-${scene.scene_number}`} className="scene-action-editor" value={scene.action} onChange={e => updateSceneAction(scene.scene_number, e.target.value)} rows={3} /><div className="scene-dialogue-preview">{scene.dialogue.slice(0, 2).map((line, i) => <blockquote key={i}>{line}</blockquote>)}</div><label className="scene-edit-label" htmlFor={`scene-instruction-${scene.scene_number}`}>What should change?</label><div className="scene-refine-row"><input id={`scene-instruction-${scene.scene_number}`} value={sceneInstructions[scene.scene_number] || ""} onChange={e => setSceneInstructions(current => ({ ...current, [scene.scene_number]: e.target.value }))} placeholder="More tension, softer dialogue…" maxLength={500} /><button onClick={() => regenerateScene(scene.scene_number)} disabled={regeneratingScene !== null} aria-label={`Regenerate scene ${scene.scene_number}`}>{regeneratingScene === scene.scene_number ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />} Refine</button></div><div className="scene-emotion"><span /> {scene.emotional_beat}</div><div className="video-generation-row"><button className="video-generate-button" onClick={() => generateVideo(scene.scene_number)} disabled={generatingVideo !== null || ["queued", "starting", "processing"].includes(videoJobs[scene.scene_number]?.status || "")}>{generatingVideo === scene.scene_number ? <LoaderCircle className="spin" size={14} /> : <Film size={14} />} {videoJobs[scene.scene_number] ? "Generate again" : "Generate video clip"}</button>{videoJobs[scene.scene_number] && <div className="video-job-status"><span className={`job-status-dot status-${videoJobs[scene.scene_number].status}`} />{videoJobs[scene.scene_number].status.replace("_", " ")}{["queued", "starting", "processing"].includes(videoJobs[scene.scene_number].status) && <button onClick={() => refreshVideo(scene.scene_number)} disabled={checkingVideo !== null}>{checkingVideo === scene.scene_number ? <LoaderCircle className="spin" size={12} /> : <RefreshCw size={12} />} Check status</button>}</div>}{videoJobs[scene.scene_number]?.error && <p className="video-job-error">{videoJobs[scene.scene_number].error}</p>}{videoJobs[scene.scene_number]?.video_url && <video className="generated-video" controls playsInline preload="metadata" src={videoJobs[scene.scene_number].video_url || undefined}>Your browser does not support video playback.</video>}</div></article>)}<section className="episode-export-panel"><div><strong>Final episode</strong><p>Combine all scene clips into one vertical MP4 with dialogue subtitles.</p></div><button className="episode-export-button" onClick={assembleEpisode} disabled={!canAssembleEpisode || assemblingEpisode}>{assemblingEpisode ? <LoaderCircle className="spin" size={15} /> : <Film size={15} />}{assemblingEpisode ? "Assembling episode…" : "Assemble 9:16 MP4"}</button>{!canAssembleEpisode && <small>Generate and refresh every scene until all clips show as succeeded.</small>}{episodeExport && <div className="episode-export-success"><Check size={16} /><span>Episode ready · MP4 · 9:16</span><a href={episodeExport.download_url} download>Download episode <ArrowDownRight size={14} /></a></div>}</section><div className="cliffhanger"><span>THE CLIFFHANGER</span><p>{screenplay.cliffhanger}</p></div>{screenplay.continuity_notes.length > 0 && <div className="continuity-note"><strong>Continuity notes</strong>{screenplay.continuity_notes.map((note, i) => <p key={i}>{note}</p>)}</div>}</div> : <div className="cast-list">{screenplay.characters.map(character => <article className="cast-card" key={character.id}><div className="cast-avatar">{character.name.slice(0, 1).toUpperCase()}</div><div><h4>{character.name}</h4><span>{character.age_range}</span><p>{character.appearance}</p><small>{character.personality}</small></div></article>)}</div>}
               </div>
