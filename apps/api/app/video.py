@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 
 from app.config import Settings
-from app.models import Screenplay, Scene
+from app.models import Scene, Screenplay
 
 
 class VideoProviderNotConfiguredError(RuntimeError):
