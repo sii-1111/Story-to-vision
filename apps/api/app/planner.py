@@ -54,6 +54,13 @@ JSON shape:
 }"""
 
 
+SCENE_REGENERATION_PROMPT = """You are an episodic drama screenwriter and continuity supervisor.
+Rewrite exactly one scene for the supplied screenplay. Return only a JSON object matching the Scene schema.
+Preserve the scene number, established character IDs, core story facts, visual style, language, relationships,
+timeline, and narrative purpose. Do not introduce unlisted characters. Follow the creator instruction only
+where it does not contradict screenplay continuity.
+"""
+
 class PlannerNotConfiguredError(RuntimeError):
     """Raised when no usable LLM credentials/model have been configured."""
 
@@ -124,3 +131,68 @@ class LLMStoryPlanner:
             )
 
         return screenplay
+
+    async def regenerate_scene(self, screenplay, scene_number: int, instruction: str):
+        from app.models import Scene
+
+        if not self.settings.llm_api_key.strip() or not self.settings.llm_model.strip():
+            raise PlannerNotConfiguredError(
+                "Configure LLM_API_KEY and LLM_MODEL in the API environment."
+            )
+
+        original = next(
+            scene for scene in screenplay.scenes if scene.scene_number == scene_number
+        )
+        payload = {
+            "model": self.settings.llm_model,
+            "temperature": 0.3,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": SCENE_REGENERATION_PROMPT},
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "screenplay": screenplay.model_dump(mode="json"),
+                            "scene_to_rewrite": original.model_dump(mode="json"),
+                            "creator_instruction": instruction,
+                        },
+                        ensure_ascii=False,
+                    ),
+                },
+            ],
+        }
+        url = f"{self.settings.llm_base_url.rstrip('/')}/chat/completions"
+        headers = {"Authorization": f"Bearer {self.settings.llm_api_key}"}
+        try:
+            async with httpx.AsyncClient(timeout=self.settings.llm_timeout_seconds) as client:
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                body = response.json()
+                raw = body["choices"][0]["message"]["content"]
+                if not isinstance(raw, str):
+                    raise ValueError("LLM response content was not text")
+                replacement = Scene.model_validate_json(raw)
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+            raise PlannerUpstreamError(
+                "The configured LLM provider did not return a valid scene. Please retry."
+            ) from exc
+
+        if replacement.scene_number != scene_number:
+            raise PlannerUpstreamError("The regenerated scene number did not match the request.")
+        known_ids = {character.id for character in screenplay.characters}
+        if any(item not in known_ids for item in replacement.characters_present):
+            raise PlannerUpstreamError(
+                "The regenerated scene referenced a character outside the established cast."
+            )
+        original_total = sum(scene.duration_seconds for scene in screenplay.scenes)
+        proposed_total = original_total - original.duration_seconds + replacement.duration_seconds
+        tolerance = max(3, round(original_total * 0.2))
+        if abs(proposed_total - original_total) > tolerance:
+            raise PlannerUpstreamError(
+                "The regenerated scene changes episode duration too much. Please retry."
+            )
+        return replacement, [
+            "Scene regenerated with the existing screenplay and cast context.",
+            "Review dialogue, transitions, and visual continuity before video generation.",
+        ]
