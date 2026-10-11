@@ -93,14 +93,14 @@ def _write_subtitles(screenplay: Screenplay, path: Path) -> None:
             for index, line in enumerate(dialogue):
                 start = offset_ms + index * slot_ms
                 end = offset_ms + min(scene_duration_ms, (index + 1) * slot_ms)
-                safe_line = re.sub(r"[\\r\\n]+", " ", line).strip()
+                safe_line = re.sub(r"[\r\n]+", " ", line).strip()
                 entries.append(
-                    f"{cue}\\n{_subtitle_timestamp(start)} --> "
-                    f"{_subtitle_timestamp(end)}\\n{safe_line}\\n"
+                    f"{cue}\n{_subtitle_timestamp(start)} --> "
+                    f"{_subtitle_timestamp(end)}\n{safe_line}\n"
                 )
                 cue += 1
         offset_ms += scene_duration_ms
-    path.write_text("\\n".join(entries), encoding="utf-8")
+    path.write_text("\n".join(entries), encoding="utf-8")
 
 
 async def assemble_episode(
@@ -140,7 +140,7 @@ async def assemble_episode(
 
         concat_file = temp_dir / "clips.txt"
         concat_file.write_text(
-            "".join(f"file '{clip.as_posix()}'\\n" for clip in clips),
+            "".join(f"file '{clip.as_posix()}'\n" for clip in clips),
             encoding="utf-8",
         )
         subtitles = temp_dir / "dialogue.srt"
