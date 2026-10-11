@@ -523,7 +523,9 @@ def test_quality_inspector_flags_prolonged_black_and_frozen_segments(monkeypatch
     assert report["status"] == "failed"
 
 
-def test_quality_inspector_passes_visual_scan_without_long_black_or_freeze(monkeypatch, tmp_path) -> None:
+def test_quality_inspector_passes_visual_scan_without_long_black_or_freeze(
+    monkeypatch, tmp_path
+) -> None:
     import asyncio
     import json
 
