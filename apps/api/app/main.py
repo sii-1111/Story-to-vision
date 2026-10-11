@@ -29,6 +29,8 @@ from app.models import (
     VideoGenerationRequest,
     VideoJobResponse,
     VideoQualityResponse,
+    VisualIdentityCheckRequest,
+    VisualIdentityCheckResponse,
 )
 from app.planner import (
     LLMStoryPlanner,
@@ -36,6 +38,11 @@ from app.planner import (
     PlannerUpstreamError,
 )
 from app.quality import VideoQualityError, inspect_video
+from app.visual_identity import (
+    VisualIdentityNotConfiguredError,
+    VisualIdentityProviderError,
+    audit_visual_identity,
+)
 from app.video import (
     ReplicateVideoProvider,
     VideoProviderError,
@@ -79,6 +86,37 @@ async def plan_story(request: StoryRequest) -> StoryPlanResponse:
 
     return StoryPlanResponse(screenplay=screenplay)
 
+
+
+@app.post(
+    "/api/stories/visual-identity-check",
+    response_model=VisualIdentityCheckResponse,
+    tags=["stories"],
+    summary="Compare generated frame images against canonical character reference images",
+)
+async def check_visual_identity(
+    request: VisualIdentityCheckRequest,
+) -> VisualIdentityCheckResponse:
+    from app.visual_identity import VisualIdentityNotConfiguredError, VisualIdentityProviderError
+
+    try:
+        report = await audit_visual_identity(get_settings(), request)
+    except VisualIdentityNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except VisualIdentityProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    return VisualIdentityCheckResponse(**report)
 
 
 @app.post(
