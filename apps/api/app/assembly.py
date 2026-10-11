@@ -186,7 +186,7 @@ async def assemble_episode(
                 stderr=asyncio.subprocess.PIPE,
             )
             _, stderr = await asyncio.wait_for(process.communicate(), timeout=300)
-        except (OSError, asyncio.TimeoutError) as exc:
+        except (OSError, TimeoutError) as exc:
             destination.unlink(missing_ok=True)
             raise EpisodeAssemblyError(
                 "Episode assembly timed out or could not start."
