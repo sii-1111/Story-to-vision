@@ -33,7 +33,9 @@ def build_continuity_report(screenplay: Screenplay) -> dict[str, Any]:
         # Short lists keep prompts stable and avoid copying an entire biography into every shot.
         anchors = list(dict.fromkeys(
             token for token in re.findall(r"[A-Za-z][A-Za-z'-]{2,}", character.appearance)
-            if token.lower() not in {"with", "from", "that", "this", "their", "wearing", "character"}
+            if token.lower() not in {
+                "with", "from", "that", "this", "their", "wearing", "character"
+            }
         ))[:8]
         scene_results = []
         for scene in scenes:
@@ -53,7 +55,8 @@ def build_continuity_report(screenplay: Screenplay) -> dict[str, Any]:
                 "recommendation": (
                     "Visual direction references character traits."
                     if anchored else
-                    f"Add 1–2 stable visual traits for {character.name} to the action or camera direction."
+                    f"Add 1–2 stable visual traits for {character.name} to the action "
+                    "or camera direction."
                 ),
             })
         entries.append({
@@ -70,7 +73,8 @@ def build_continuity_report(screenplay: Screenplay) -> dict[str, Any]:
         for result in scene_results:
             if not result["anchored"]:
                 warnings.append(
-                    f"{character.name} in scene {result['scene_number']} needs stronger visual direction."
+                    f"{character.name} in scene {result['scene_number']} needs "
+                    "stronger visual direction."
                 )
 
     score = round(100 * anchored_appearances / total_appearances) if total_appearances else 100
