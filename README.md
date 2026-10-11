@@ -16,6 +16,7 @@ The first milestone establishes a tested FastAPI foundation for story submission
 - [x] SQLite-backed story projects, saved screenplays, character profiles, and generation-job history
 - [ ] Durable cloud output downloads
 - [x] Persistent story and character continuity
+- [x] Vision-model-assisted character reference vs. generated-frame review (requires a vision-capable provider model)
 - [x] Episode assembly and MP4 export
 - [x] Automated technical quality checks for exported videos
 - [x] Creator-friendly web interface with scene refinement and video clip controls
@@ -26,7 +27,7 @@ Save a project from Creator Studio to store the original story, latest screenpla
 
 ## Character continuity bible
 
-Open the **Cast** tab and choose **Audit continuity** to review each character's canonical appearance, reusable visual anchors, and scenes where the screenplay should repeat recognizable traits. The report provides a text-based coverage score and scene-level suggestions before video generation. The existing video prompt builder also injects each character's canonical appearance into every scene prompt. This audit is not face recognition and cannot confirm that generated video pixels preserve identity; human review or a future visual-embedding comparison is still required.
+Open the **Cast** tab and choose **Audit continuity** to review each character's canonical appearance, reusable visual anchors, and scenes where the screenplay should repeat recognizable traits. The report provides a text-based coverage score and scene-level suggestions before video generation. The existing video prompt builder also injects each character's canonical appearance into every scene prompt. The Cast tab also supports vision-model-assisted comparison between uploaded canonical character references and representative generated frames. Configure `VISUAL_IDENTITY_MODEL` with a vision-capable OpenAI-compatible model. Results flag likely visual drift for creator review; they are subjective model estimates, not biometric identification or a guarantee of continuity. Images are sent to the configured provider and are not persisted by the review endpoint.
 
 ## Episode technical quality gate
 
