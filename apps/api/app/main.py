@@ -16,6 +16,7 @@ from app.planner import (
     PlannerUpstreamError,
 )
 from app.video import (
+    build_scene_prompt,
     ReplicateVideoProvider,
     VideoProviderError,
     VideoProviderNotConfiguredError,
