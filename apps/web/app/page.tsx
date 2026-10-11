@@ -86,6 +86,45 @@ export default function CreatorStudio() {
     }
   }
 
+  async function regenerateScene(sceneNumber: number) {
+    if (!screenplay) return;
+    setError("");
+    setRegeneratingScene(sceneNumber);
+    try {
+      const response = await fetch("/api/stories/regenerate-scene", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          screenplay,
+          scene_number: sceneNumber,
+          instruction: sceneInstructions[sceneNumber]?.trim() || "Improve emotional impact and cinematic visual direction while preserving continuity.",
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload.detail === "string" ? payload.detail : "Scene regeneration failed.");
+      }
+      const result = payload as { scene: Scene; continuity_notes: string[] };
+      setScreenplay({
+        ...screenplay,
+        scenes: screenplay.scenes.map(scene => scene.scene_number === sceneNumber ? result.scene : scene),
+        continuity_notes: Array.from(new Set([...screenplay.continuity_notes, ...result.continuity_notes])),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Scene regeneration failed.");
+    } finally {
+      setRegeneratingScene(null);
+    }
+  }
+
+  function updateSceneAction(sceneNumber: number, action: string) {
+    if (!screenplay) return;
+    setScreenplay({
+      ...screenplay,
+      scenes: screenplay.scenes.map(scene => scene.scene_number === sceneNumber ? { ...scene, action } : scene),
+    });
+  }
+
   return (
     <main className="studio-shell">
       <aside className="sidebar">
