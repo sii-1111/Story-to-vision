@@ -95,3 +95,23 @@ class SceneRegenerationResponse(BaseModel):
     status: Literal["completed"] = "completed"
     scene: Scene
     continuity_notes: list[str] = Field(default_factory=list, max_length=12)
+
+
+class VideoGenerationRequest(BaseModel):
+    screenplay: Screenplay
+    scene_number: int = Field(ge=1, le=6)
+
+    @model_validator(mode="after")
+    def requested_scene_must_exist(self) -> "VideoGenerationRequest":
+        if self.scene_number > len(self.screenplay.scenes):
+            raise ValueError("scene_number must refer to a scene in the supplied screenplay")
+        return self
+
+
+class VideoJobResponse(BaseModel):
+    job_id: str
+    status: Literal[
+        "queued", "starting", "processing", "succeeded", "failed", "canceled", "unknown"
+    ]
+    video_url: str | None = None
+    error: str | None = None
