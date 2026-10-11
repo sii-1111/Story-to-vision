@@ -161,8 +161,8 @@ async def inspect_video(
                 "No frozen segment longer than 3 seconds detected."
                 if not freeze_durations
                 else (
-                    f"Detected {len(freeze_durations)} potentially frozen segment(s) over 3 seconds; "
-                    "review for intentional still shots."
+                    f"Detected {len(freeze_durations)} potentially frozen segment(s) "
+                    "over 3 seconds; review for intentional still shots."
                 ),
             )
         )
