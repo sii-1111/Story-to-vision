@@ -1,24 +1,27 @@
 import json
 
-import httpx
-
 from app.config import Settings
 from app.models import Screenplay, StoryRequest
 
+import httpx
 
-SYSTEM_PROMPT = """You are a professional episodic drama screenwriter and visual continuity supervisor.
-Convert the supplied story into a shootable screenplay for one short vertical-video episode.
-Return ONLY a valid JSON object matching the requested schema.
+
+SYSTEM_PROMPT = """You are a professional episodic drama screenwriter and visual continuity
+supervisor. Convert the supplied story into a shootable screenplay for one
+short vertical-video episode. Return ONLY a valid JSON object matching the
+requested schema.
 Rules:
 - Create 4 to 6 scenes; their durations should sum to within 20% of the requested episode duration.
 - Preserve the source story's core intent. Do not invent major facts that contradict it.
-- Give each recurring character a stable ID (lowercase snake_case) and concrete, repeatable visual traits.
+- Give each recurring character a stable ID (lowercase snake_case) and
+  concrete, repeatable visual traits.
 - Keep character appearance, relationships, locations, and timeline consistent across scenes.
 - Dialogue must be concise and performable; include natural pauses and emotional subtext.
 - Every scene must name only character IDs defined in characters.
 - Make the final scene deliver a compelling cliffhanger without resolving every conflict.
 - Write all screenplay text in the requested language.
-- Include concrete visual directions suitable for direct text-to-video generation: framing, movement, lighting, setting, and facial emotion.
+- Include concrete visual directions suitable for direct text-to-video
+  generation: framing, movement, lighting, setting, and facial emotion.
 JSON shape:
 {
   "title": "string",
