@@ -24,7 +24,8 @@ from app.models import (
     StoryPlanResponse,
     StoryRequest,
     VideoGenerationRequest,
-    VideoJobResponse,\n    VideoQualityResponse,
+    VideoJobResponse,
+    VideoQualityResponse,
 )
 from app.quality import VideoQualityError, inspect_video
 from app.planner import (
