@@ -28,6 +28,30 @@ uvicorn app.main:app --app-dir apps/api --reload
 
 Open http://127.0.0.1:8000/docs for interactive API docs.
 
+## Provider readiness and live smoke test
+
+`GET /api/system/provider-readiness` reports whether screenplay generation, video generation, and visual identity review have their required configuration present. It returns booleans only and never exposes credentials.
+
+From the repository root, start the API and run a no-cost configuration preflight:
+
+```powershell
+python scripts/provider_smoke_test.py
+```
+
+To call your configured LLM and validate a real screenplay (may incur model charges):
+
+```powershell
+python scripts/provider_smoke_test.py --plan
+```
+
+To submit all scene clips, wait for the video provider, assemble the episode, and run the technical quality gate (may incur significant video-generation charges):
+
+```powershell
+python scripts/provider_smoke_test.py --generate-episode
+```
+
+Use `--base-url http://localhost:8000` for a different API host and `--poll-timeout 1200` to wait up to 20 minutes. Timeouts do not cancel remote jobs. Inspect the provider dashboard before retrying to avoid duplicate charges. Configure `LLM_API_KEY`, `LLM_MODEL`, `VIDEO_API_TOKEN`, and `VIDEO_MODEL` in the API environment first; model-specific Replicate input fields must also match the selected model.
+
 ## Tests
 
 From the repository root:
