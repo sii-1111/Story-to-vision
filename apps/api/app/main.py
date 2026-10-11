@@ -97,8 +97,6 @@ async def plan_story(request: StoryRequest) -> StoryPlanResponse:
 async def check_visual_identity(
     request: VisualIdentityCheckRequest,
 ) -> VisualIdentityCheckResponse:
-    from app.visual_identity import VisualIdentityNotConfiguredError, VisualIdentityProviderError
-
     try:
         report = await audit_visual_identity(get_settings(), request)
     except VisualIdentityNotConfiguredError as exc:
