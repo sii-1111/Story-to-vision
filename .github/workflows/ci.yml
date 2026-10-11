@@ -1,4 +1,4 @@
-name: API CI
+name: Story-to-Vision CI
 
 on:
   push:
@@ -27,3 +27,26 @@ jobs:
 
       - name: Test
         run: pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install web dependencies
+        run: npm install
+
+      - name: Type-check
+        run: npm run lint
+
+      - name: Build web app
+        run: npm run build
