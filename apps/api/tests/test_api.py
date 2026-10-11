@@ -451,7 +451,7 @@ def test_quality_inspector_reports_success_for_valid_video_metadata(monkeypatch,
         return 0, "", ""
 
     monkeypatch.setattr("app.quality._run", fake_run)
-    report = await inspect_video(video_path, expected_duration_seconds=12)
+    report = asyncio.run(inspect_video(video_path, expected_duration_seconds=12))
     assert report["status"] == "passed"
     assert all(check["status"] == "passed" for check in report["checks"])
 
