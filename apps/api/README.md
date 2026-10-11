@@ -86,3 +86,16 @@ Example request body for `POST /api/videos/jobs`:
 ```
 
 Jobs are tracked by the provider; the app does not persist a local job database in this milestone. Use the status endpoint to refresh queued/processing jobs. Generated output URLs are provider-hosted and may expire; download/export persistence and full-episode assembly are future work. Video provider tokens stay on the server and must never be exposed through frontend variables.
+
+## Assemble and download a complete episode
+
+Generate a clip for each screenplay scene and refresh each job until its status is `succeeded`. Then submit the full screenplay and one provider job ID per scene, in screenplay order:
+
+```http
+POST /api/episodes/assemble
+Content-Type: application/json
+```
+
+The response includes an `episode_id` and a `download_url`. Download the MP4 from that URL. The API downloads provider output only from HTTPS `replicate.delivery` hosts, limits each source clip to 250 MB, and uses FFmpeg to normalize clips to 1080×1920 at 30 fps. Dialogue is burned in as subtitles; original generated audio is not retained in this initial assembly pass.
+
+Set `EPISODE_EXPORT_DIR` to choose the output directory. Docker Compose uses a persistent named volume at `/app/data/exports`. Install FFmpeg with subtitle support for non-Docker local runs. Exports are local to the API instance; configure backups and access controls before production use. This milestone does not yet provide authentication, multi-user isolation, automated clip-quality checks, or cloud object storage.

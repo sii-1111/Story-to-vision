@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     video_prompt_field: str = "prompt"
     video_aspect_ratio_field: str = "aspect_ratio"
     video_duration_field: str = "duration"
+    episode_export_dir: str = "data/exports"
 
 
 @lru_cache

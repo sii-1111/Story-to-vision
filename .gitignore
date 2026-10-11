@@ -21,3 +21,6 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Generated episode exports
+data/exports/
