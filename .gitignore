@@ -24,3 +24,6 @@ Thumbs.db
 
 # Generated episode exports
 data/exports/
+
+# Local project and character database
+data/*.sqlite3
