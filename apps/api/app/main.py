@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-from app.models import StoryPlanResponse, StoryRequest
+from app.models import (\n    SceneRegenerationRequest,\n    SceneRegenerationResponse,\n    StoryPlanResponse,\n    StoryRequest,\n)
 from app.planner import (
     LLMStoryPlanner,
     PlannerNotConfiguredError,
@@ -45,6 +45,35 @@ async def plan_story(request: StoryRequest) -> StoryPlanResponse:
 
     return StoryPlanResponse(screenplay=screenplay)
 
+
+
+@app.post(
+    "/api/stories/regenerate-scene",
+    response_model=SceneRegenerationResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["stories"],
+    summary="Regenerate one scene while preserving screenplay continuity",
+)
+async def regenerate_scene(request: SceneRegenerationRequest) -> SceneRegenerationResponse:
+    planner = LLMStoryPlanner(get_settings())
+    try:
+        scene, notes = await planner.regenerate_scene(
+            request.screenplay,
+            request.scene_number,
+            request.instruction,
+        )
+    except PlannerNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except PlannerUpstreamError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    return SceneRegenerationResponse(scene=scene, continuity_notes=notes)
 
 @app.exception_handler(Exception)
 async def unexpected_error_handler(
