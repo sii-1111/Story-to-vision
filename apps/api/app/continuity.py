@@ -18,7 +18,6 @@ def _tokens(value: str) -> set[str]:
 
 def build_continuity_report(screenplay: Screenplay) -> dict[str, Any]:
     """Check character coverage and whether scenes carry useful visual identity anchors."""
-    character_by_id = {character.id: character for character in screenplay.characters}
     entries: list[dict[str, Any]] = []
     warnings: list[str] = []
     total_appearances = 0
