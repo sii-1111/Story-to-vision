@@ -206,8 +206,8 @@ def get_project(
     conn: sqlite3.Connection | None = None,
     episode_id: str | None = None,
 ) -> dict[str, Any]:
-    initialize_database()
     if conn is None:
+        initialize_database()
         with connection() as owned:
             return get_project(project_id, conn=owned, episode_id=episode_id)
     row = conn.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
