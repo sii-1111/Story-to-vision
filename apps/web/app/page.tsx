@@ -64,7 +64,11 @@ export default function CreatorStudio() {
   const [episodeExport, setEpisodeExport] = useState<EpisodeExport | null>(null);
   const [qualityReport, setQualityReport] = useState<QualityReport | null>(null);
   const [continuityReport, setContinuityReport] = useState<ContinuityReport | null>(null);
-  const [checkingContinuity, setCheckingContinuity] = useState(false);\n  const [identityReferences, setIdentityReferences] = useState<Record<string, ImageInput>>({});\n  const [identityFrames, setIdentityFrames] = useState<Record<number, ImageInput>>({});\n  const [identityResult, setIdentityResult] = useState<IdentityResult | null>(null);\n  const [checkingIdentity, setCheckingIdentity] = useState(false);
+  const [checkingContinuity, setCheckingContinuity] = useState(false);
+  const [identityReferences, setIdentityReferences] = useState<Record<string, ImageInput>>({});
+  const [identityFrames, setIdentityFrames] = useState<Record<number, ImageInput>>({});
+  const [identityResult, setIdentityResult] = useState<IdentityResult | null>(null);
+  const [checkingIdentity, setCheckingIdentity] = useState(false);
   const [checkingQuality, setCheckingQuality] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
