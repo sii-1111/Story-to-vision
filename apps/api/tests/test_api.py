@@ -478,3 +478,83 @@ def test_quality_inspector_rejects_missing_export(tmp_path) -> None:
 def test_openapi_contains_episode_quality_endpoints() -> None:
     paths = client.get("/openapi.json").json()["paths"]
     assert "/api/episodes/exports/{episode_id}/quality-check" in paths
+
+
+def test_quality_inspector_flags_prolonged_black_and_frozen_segments(monkeypatch, tmp_path) -> None:
+    import asyncio
+    import json
+
+    from app.quality import inspect_video
+
+    video_path = tmp_path / "sample.mp4"
+    video_path.write_bytes(b"x" * 2048)
+    monkeypatch.setattr("app.quality.shutil.which", lambda name: f"/usr/bin/{name}")
+
+    async def fake_run(*command, timeout=45):
+        if "-show_entries" in command:
+            return (
+                0,
+                json.dumps({
+                    "format": {"duration": "12.0", "size": "2048"},
+                    "streams": [{
+                        "codec_type": "video",
+                        "codec_name": "h264",
+                        "width": 1080,
+                        "height": 1920,
+                        "avg_frame_rate": "30/1",
+                    }],
+                }),
+                "",
+            )
+        if "-vf" in command:
+            return (
+                0,
+                "",
+                "[blackdetect] black_start:2 black_end:5 black_duration:3.0\\n"
+                "[freezedetect] freeze_start:6 freeze_end:10 freeze_duration:4.0",
+            )
+        return 0, "", ""
+
+    monkeypatch.setattr("app.quality._run", fake_run)
+    report = asyncio.run(inspect_video(video_path, expected_duration_seconds=12))
+    checks = {check["name"]: check for check in report["checks"]}
+    assert checks["Prolonged black frames"]["status"] == "failed"
+    assert checks["Frozen frames"]["status"] == "failed"
+    assert report["status"] == "failed"
+
+
+def test_quality_inspector_passes_visual_scan_without_long_black_or_freeze(
+    monkeypatch, tmp_path
+) -> None:
+    import asyncio
+    import json
+
+    from app.quality import inspect_video
+
+    video_path = tmp_path / "sample.mp4"
+    video_path.write_bytes(b"x" * 2048)
+    monkeypatch.setattr("app.quality.shutil.which", lambda name: f"/usr/bin/{name}")
+
+    async def fake_run(*command, timeout=45):
+        if "-show_entries" in command:
+            return (
+                0,
+                json.dumps({
+                    "format": {"duration": "12.0", "size": "2048"},
+                    "streams": [{
+                        "codec_type": "video",
+                        "codec_name": "h264",
+                        "width": 1080,
+                        "height": 1920,
+                        "avg_frame_rate": "30/1",
+                    }],
+                }),
+                "",
+            )
+        return 0, "", ""
+
+    monkeypatch.setattr("app.quality._run", fake_run)
+    report = asyncio.run(inspect_video(video_path, expected_duration_seconds=12))
+    checks = {check["name"]: check for check in report["checks"]}
+    assert checks["Prolonged black frames"]["status"] == "passed"
+    assert checks["Frozen frames"]["status"] == "passed"

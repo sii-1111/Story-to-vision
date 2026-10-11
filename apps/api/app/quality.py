@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -114,6 +115,57 @@ async def inspect_video(
             if decode_ok else "Decoder reported errors; regenerate or reassemble this episode.",
         )
     )
+    scan_code, _, scan_stderr = await _run(
+        ffmpeg,
+        "-hide_banner",
+        "-v", "info",
+        "-i", str(video_path),
+        "-vf", "blackdetect=d=2:pix_th=0.98,freezedetect=n=-60dB:d=3",
+        "-an",
+        "-f", "null", "-",
+        timeout=120,
+    )
+    if scan_code != 0:
+        checks.append(
+            _check(
+                "Visual anomaly scan",
+                False,
+                "FFmpeg could not complete black-frame and frozen-frame analysis.",
+            )
+        )
+    else:
+        black_durations = [
+            float(value)
+            for value in re.findall(r"black_duration:([0-9.]+)", scan_stderr)
+        ]
+        freeze_durations = [
+            float(value)
+            for value in re.findall(r"freeze_duration:([0-9.]+)", scan_stderr)
+        ]
+        checks.append(
+            _check(
+                "Prolonged black frames",
+                not black_durations,
+                "No black segment longer than 2 seconds detected."
+                if not black_durations
+                else (
+                    f"Detected {len(black_durations)} black segment(s) over 2 seconds; "
+                    "review scene transitions."
+                ),
+            )
+        )
+        checks.append(
+            _check(
+                "Frozen frames",
+                not freeze_durations,
+                "No frozen segment longer than 3 seconds detected."
+                if not freeze_durations
+                else (
+                    f"Detected {len(freeze_durations)} potentially frozen segment(s) "
+                    "over 3 seconds; review for intentional still shots."
+                ),
+            )
+        )
     passed = all(check["status"] == "passed" for check in checks)
     return {
         "status": "passed" if passed else "failed",
