@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
         destination: `${apiBase}/api/stories/:path*`,
       },
       {
+        source: "/api/projects/:path*",
+        destination: `${apiBase}/api/projects/:path*`,
+      },
+      {
         source: "/api/videos/:path*",
         destination: `${apiBase}/api/videos/:path*`,
       },

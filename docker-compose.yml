@@ -19,8 +19,11 @@ services:
       VIDEO_ASPECT_RATIO_FIELD: ${VIDEO_ASPECT_RATIO_FIELD:-aspect_ratio}
       VIDEO_DURATION_FIELD: ${VIDEO_DURATION_FIELD:-duration}
       EPISODE_EXPORT_DIR: /app/data/exports
+      DATABASE_PATH: /app/data/story_to_vision.sqlite3
     ports:
       - "8000:8000"
+    volumes:
+      - story_data:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 30s
@@ -28,4 +31,4 @@ services:
       retries: 3
 
 volumes:
-  episode_exports:
+  story_data:

@@ -99,3 +99,14 @@ Content-Type: application/json
 The response includes an `episode_id` and a `download_url`. Download the MP4 from that URL. The API downloads provider output only from HTTPS `replicate.delivery` hosts, limits each source clip to 250 MB, and uses FFmpeg to normalize clips to 1080×1920 at 30 fps. Dialogue is burned in as subtitles; original generated audio is not retained in this initial assembly pass.
 
 Set `EPISODE_EXPORT_DIR` to choose the output directory. Docker Compose uses a persistent named volume at `/app/data/exports`. Install FFmpeg with subtitle support for non-Docker local runs. Exports are local to the API instance; configure backups and access controls before production use. This milestone does not yet provide authentication, multi-user isolation, automated clip-quality checks, or cloud object storage.
+
+
+## Persistent projects and character universe
+
+The API stores projects, screenplay JSON, character profiles, and generation-job status in SQLite. Configure `DATABASE_PATH` (default `data/story_to_vision.sqlite3`). The web app uses:
+
+- `POST /api/projects` — create a project or update its latest saved screenplay.
+- `GET /api/projects` — list saved projects and episode/character counts.
+- `GET /api/projects/{project_id}` — restore a project, latest screenplays, character profiles, and tracked video jobs.
+
+Save a project before starting scene video generation to associate provider jobs with that project. Refreshing a tracked job updates its saved status. Docker Compose mounts a named `story_data` volume at `/app/data`, keeping SQLite data and episode exports across container recreation. This milestone does not include authentication, concurrent multi-user isolation, schema migrations, or remote object storage; do not expose this API publicly without adding those controls.

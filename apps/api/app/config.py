@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     video_aspect_ratio_field: str = "aspect_ratio"
     video_duration_field: str = "duration"
     episode_export_dir: str = "data/exports"
+    database_path: str = "data/story_to_vision.sqlite3"
 
 
 @lru_cache

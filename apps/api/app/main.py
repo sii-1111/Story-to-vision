@@ -6,9 +6,19 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from app.assembly import EpisodeAssemblyError, assemble_episode
 from app.config import get_settings
+from app.database import (
+    get_project,
+    list_projects,
+    record_generation_job,
+    save_project,
+    update_generation_job,
+)
 from app.models import (
     EpisodeAssemblyRequest,
     EpisodeAssemblyResponse,
+    ProjectListResponse,
+    ProjectResponse,
+    ProjectSaveRequest,
     SceneRegenerationRequest,
     SceneRegenerationResponse,
     StoryPlanResponse,
@@ -105,6 +115,11 @@ async def regenerate_scene(request: SceneRegenerationRequest) -> SceneRegenerati
 )
 async def create_video_job(request: VideoGenerationRequest) -> VideoJobResponse:
     settings = get_settings()
+    if request.project_id:
+        try:
+            get_project(request.project_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Project not found.") from exc
     provider = ReplicateVideoProvider(settings)
     scene = request.screenplay.scenes[request.scene_number - 1]
 
@@ -123,6 +138,8 @@ async def create_video_job(request: VideoGenerationRequest) -> VideoJobResponse:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+    if request.project_id:
+        record_generation_job(request.project_id, request.scene_number, result)
     return VideoJobResponse(**result)
 
 
@@ -132,7 +149,7 @@ async def create_video_job(request: VideoGenerationRequest) -> VideoJobResponse:
     tags=["video"],
     summary="Check the status of a video generation job",
 )
-async def get_video_job(job_id: str) -> VideoJobResponse:
+async def get_video_job(job_id: str, project_id: str | None = None) -> VideoJobResponse:
     provider = ReplicateVideoProvider(get_settings())
     try:
         result = await provider.retrieve(job_id)
@@ -146,8 +163,9 @@ async def get_video_job(job_id: str) -> VideoJobResponse:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+    if project_id:
+        update_generation_job(project_id, result)
     return VideoJobResponse(**result)
-
 
 
 @app.post(
@@ -191,6 +209,54 @@ async def download_episode(episode_id: str):
         media_type="video/mp4",
         filename=f"story-to-vision-{episode_id}.mp4",
     )
+
+
+
+@app.get(
+    "/api/projects",
+    response_model=ProjectListResponse,
+    tags=["projects"],
+    summary="List saved story projects",
+)
+async def get_projects() -> ProjectListResponse:
+    return ProjectListResponse(projects=list_projects())
+
+
+@app.post(
+    "/api/projects",
+    response_model=ProjectResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["projects"],
+    summary="Save a story project and its latest screenplay",
+)
+async def save_story_project(request: ProjectSaveRequest) -> ProjectResponse:
+    try:
+        screenplay = request.screenplay.model_dump(mode="json") if request.screenplay else None
+        project = save_project(
+            title=request.title,
+            story=request.story,
+            screenplay=screenplay,
+            project_id=request.project_id,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found.") from exc
+    return ProjectResponse(project=project)
+
+
+@app.get(
+    "/api/projects/{project_id}",
+    response_model=ProjectResponse,
+    tags=["projects"],
+    summary="Load a saved project, screenplay, characters, and generation history",
+)
+async def load_story_project(project_id: str) -> ProjectResponse:
+    if not re.fullmatch(r"[a-f0-9]{32}", project_id):
+        raise HTTPException(status_code=404, detail="Project not found.")
+    try:
+        project = get_project(project_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found.") from exc
+    return ProjectResponse(project=project)
 
 @app.exception_handler(Exception)
 async def unexpected_error_handler(

@@ -13,11 +13,16 @@ The first milestone establishes a tested FastAPI foundation for story submission
 - [x] Configurable OpenAI-compatible LLM screenplay planner
 - [ ] Connect and verify a chosen LLM provider with real credentials
 - [x] Replicate video-provider adapter and asynchronous job status API
-- [ ] Persistent job/story storage and durable output downloads
-- [ ] Persistent story and character continuity
+- [x] SQLite-backed story projects, saved screenplays, character profiles, and generation-job history
+- [ ] Durable cloud output downloads
+- [x] Persistent story and character continuity
 - [x] Episode assembly and MP4 export
 - [ ] Automated visual quality checks
 - [x] Creator-friendly web interface with scene refinement and video clip controls
+
+## Persistent creator projects
+
+Save a project from Creator Studio to store the original story, latest screenplay, stable character profiles, and provider generation-job history. Use **My episodes** to reopen saved projects. SQLite data and MP4 exports share the Docker Compose `story_data` volume. This MVP is intended for a single trusted creator; authentication, multi-user access controls, database migrations, and cloud object storage remain future work.
 
 ## Development
 
