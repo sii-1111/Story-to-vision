@@ -110,3 +110,8 @@ The API stores projects, screenplay JSON, character profiles, and generation-job
 - `GET /api/projects/{project_id}` — restore a project, latest screenplays, character profiles, and tracked video jobs.
 
 Save a project before starting scene video generation to associate provider jobs with that project. Refreshing a tracked job updates its saved status. Docker Compose mounts a named `story_data` volume at `/app/data`, keeping SQLite data and episode exports across container recreation. This milestone does not include authentication, concurrent multi-user isolation, schema migrations, or remote object storage; do not expose this API publicly without adding those controls.
+
+
+## Episode technical quality checks
+
+After assembling an MP4, request `GET /api/episodes/exports/{episode_id}/quality-check`. The endpoint inspects the video with FFprobe and decodes the full video stream with FFmpeg. It reports dimensions, codec, duration, frame-rate metadata, file size, and individual checks for vertical 1080×1920 output, H.264, usable duration, and full decode. FFmpeg and FFprobe are installed in the API Docker image. This report checks technical integrity only; it does not evaluate character consistency, composition, dialogue timing, or audio quality.
