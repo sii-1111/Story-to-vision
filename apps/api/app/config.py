@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     llm_model: str = ""
     llm_timeout_seconds: float = Field(default=45.0, gt=0, le=180)
 
+    video_api_base_url: str = "https://api.replicate.com/v1"
+    video_api_token: str = ""
+    video_model: str = ""
+    video_timeout_seconds: float = Field(default=60.0, gt=0, le=180)
+    video_prompt_field: str = "prompt"
+    video_aspect_ratio_field: str = "aspect_ratio"
+    video_duration_field: str = "duration"
+
 
 @lru_cache
 def get_settings() -> Settings:
