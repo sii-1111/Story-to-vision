@@ -10,15 +10,15 @@ from app.models import (
     VideoGenerationRequest,
     VideoJobResponse,
 )
-from app.video import (
-    ReplicateVideoProvider,
-    VideoProviderError,
-    VideoProviderNotConfiguredError,
-)
 from app.planner import (
     LLMStoryPlanner,
     PlannerNotConfiguredError,
     PlannerUpstreamError,
+)
+from app.video import (
+    ReplicateVideoProvider,
+    VideoProviderError,
+    VideoProviderNotConfiguredError,
 )
 
 app = FastAPI(
