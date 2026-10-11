@@ -155,4 +155,4 @@ async def assemble_episode(
             # Keep provider/model internals out of the public response.
             detail = stderr.decode("utf-8", errors="replace")[-300:]
             raise EpisodeAssemblyError(f"FFmpeg could not assemble the clips. Check clip compatibility. {detail}")
-    return f"/exports/{export_id}.mp4"
+    return f"/api/episodes/exports/{export_id}.mp4"
