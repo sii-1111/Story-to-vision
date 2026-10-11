@@ -1,6 +1,5 @@
-from fastapi.testclient import TestClient
-
 from app.main import app
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
@@ -28,7 +27,7 @@ def test_story_request_rejects_too_short_story() -> None:
 
 
 def test_planning_requires_provider_configuration(monkeypatch) -> None:
-    from app.config import Settings, get_settings
+    from app.config import Settings
 
     monkeypatch.setattr(
         "app.main.get_settings",
