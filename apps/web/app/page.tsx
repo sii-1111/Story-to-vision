@@ -55,6 +55,9 @@ export default function CreatorStudio() {
   const [episodeExport, setEpisodeExport] = useState<EpisodeExport | null>(null);
 
   const wordCount = useMemo(() => story.trim() ? story.trim().split(/\s+/).length : 0, [story]);
+  const canAssembleEpisode = Boolean(
+    screenplay && screenplay.scenes.every(scene => videoJobs[scene.scene_number]?.status === "succeeded"),
+  );
 
   async function createScreenplay() {
     setError("");
