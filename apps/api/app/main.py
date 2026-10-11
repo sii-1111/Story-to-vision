@@ -27,12 +27,12 @@ from app.models import (
     VideoJobResponse,
     VideoQualityResponse,
 )
-from app.quality import VideoQualityError, inspect_video
 from app.planner import (
     LLMStoryPlanner,
     PlannerNotConfiguredError,
     PlannerUpstreamError,
 )
+from app.quality import VideoQualityError, inspect_video
 from app.video import (
     ReplicateVideoProvider,
     VideoProviderError,
