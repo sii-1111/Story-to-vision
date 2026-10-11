@@ -277,7 +277,9 @@ def test_projects_save_list_restore_screenplay_and_characters(monkeypatch, tmp_p
     assert restored.json()["project"]["episodes"][0]["screenplay"]["scenes"][0]["scene_number"] == 1
 
 
-def test_saving_existing_project_updates_latest_screenplay_not_duplicate(monkeypatch, tmp_path) -> None:
+def test_saving_existing_project_updates_latest_screenplay_not_duplicate(
+    monkeypatch, tmp_path
+) -> None:
     from app.config import Settings
 
     monkeypatch.setattr(
@@ -286,7 +288,11 @@ def test_saving_existing_project_updates_latest_screenplay_not_duplicate(monkeyp
     )
     first = client.post(
         "/api/projects",
-        json={"title": "The Last Promise", "story": VALID_REQUEST["story"], "screenplay": _valid_screenplay()},
+        json={
+            "title": "The Last Promise",
+            "story": VALID_REQUEST["story"],
+            "screenplay": _valid_screenplay(),
+        },
     )
     assert first.status_code == 201
     project_id = first.json()["project"]["id"]
@@ -314,7 +320,11 @@ def test_project_lookup_returns_404_for_unknown_project() -> None:
 def test_project_save_rejects_invalid_project_id() -> None:
     response = client.post(
         "/api/projects",
-        json={"title": "The Last Promise", "story": VALID_REQUEST["story"], "project_id": "not-an-id"},
+        json={
+            "title": "The Last Promise",
+            "story": VALID_REQUEST["story"],
+            "project_id": "not-an-id",
+        },
     )
     assert response.status_code == 422
 
