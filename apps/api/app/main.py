@@ -1,8 +1,10 @@
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
-from app.config import get_settings
+from app.assembly import EpisodeAssemblyError, assemble_episode\nfrom app.config import get_settings
 from app.models import (
+    EpisodeAssemblyRequest,
+    EpisodeAssemblyResponse,
     SceneRegenerationRequest,
     SceneRegenerationResponse,
     StoryPlanResponse,
@@ -141,6 +143,53 @@ async def get_video_job(job_id: str) -> VideoJobResponse:
             detail=str(exc),
         ) from exc
     return VideoJobResponse(**result)
+
+
+
+@app.post(
+    "/api/episodes/assemble",
+    response_model=EpisodeAssemblyResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["episodes"],
+    summary="Assemble completed scene clips into a vertical MP4 episode",
+)
+async def assemble_episode_endpoint(
+    request: EpisodeAssemblyRequest,
+) -> EpisodeAssemblyResponse:
+    try:
+        download_url = await assemble_episode(
+            get_settings(),
+            request.screenplay,
+            request.video_job_ids,
+        )
+    except EpisodeAssemblyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    episode_id = download_url.rsplit("/", maxsplit=1)[-1].removesuffix(".mp4")
+    return EpisodeAssemblyResponse(episode_id=episode_id, download_url=download_url)
+
+
+@app.get(
+    "/api/episodes/exports/{episode_id}.mp4",
+    tags=["episodes"],
+    summary="Download an assembled MP4 episode",
+)
+async def download_episode(episode_id: str):
+    import re
+    from pathlib import Path
+
+    if not re.fullmatch(r"[a-f0-9]{32}", episode_id):
+        raise HTTPException(status_code=404, detail="Episode export not found.")
+    export_path = (Path(get_settings().episode_export_dir).resolve() / f"{episode_id}.mp4")
+    if not export_path.is_file():
+        raise HTTPException(status_code=404, detail="Episode export not found.")
+    return FileResponse(
+        export_path,
+        media_type="video/mp4",
+        filename=f"story-to-vision-{episode_id}.mp4",
+    )
 
 @app.exception_handler(Exception)
 async def unexpected_error_handler(
