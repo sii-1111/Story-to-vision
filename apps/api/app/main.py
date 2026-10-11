@@ -15,7 +15,8 @@ from app.database import (
 from app.config import get_settings
 from app.models import (
     EpisodeAssemblyRequest,
-    EpisodeAssemblyResponse,\n    ProjectListResponse,\n    ProjectResponse,\n    ProjectSaveRequest,
+    EpisodeAssemblyResponse,
+    ProjectListResponse,\n    ProjectResponse,\n    ProjectSaveRequest,
     SceneRegenerationRequest,
     SceneRegenerationResponse,
     StoryPlanResponse,
@@ -112,6 +113,11 @@ async def regenerate_scene(request: SceneRegenerationRequest) -> SceneRegenerati
 )
 async def create_video_job(request: VideoGenerationRequest) -> VideoJobResponse:
     settings = get_settings()
+    if request.project_id:
+        try:
+            get_project(request.project_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Project not found.") from exc
     provider = ReplicateVideoProvider(settings)
     scene = request.screenplay.scenes[request.scene_number - 1]
 
@@ -130,6 +136,8 @@ async def create_video_job(request: VideoGenerationRequest) -> VideoJobResponse:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+    if request.project_id:
+        record_generation_job(request.project_id, request.scene_number, result)
     return VideoJobResponse(**result)
 
 
@@ -139,7 +147,7 @@ async def create_video_job(request: VideoGenerationRequest) -> VideoJobResponse:
     tags=["video"],
     summary="Check the status of a video generation job",
 )
-async def get_video_job(job_id: str) -> VideoJobResponse:
+async def get_video_job(job_id: str, project_id: str | None = None) -> VideoJobResponse:
     provider = ReplicateVideoProvider(get_settings())
     try:
         result = await provider.retrieve(job_id)
@@ -153,8 +161,9 @@ async def get_video_job(job_id: str) -> VideoJobResponse:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+    if project_id:
+        update_generation_job(project_id, result)
     return VideoJobResponse(**result)
-
 
 
 @app.post(
