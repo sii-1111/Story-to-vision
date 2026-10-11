@@ -9,16 +9,20 @@ The first milestone establishes a tested FastAPI foundation for story submission
 ## Current status
 
 - [x] Repository initialized
-- [ ] Story planning API and validated screenplay schema
-- [ ] LLM-backed screenplay planning
+- [x] Story planning API and validated screenplay schema
+- [x] Configurable OpenAI-compatible LLM screenplay planner
+- [ ] Connect and verify a chosen LLM provider with real credentials
 - [ ] Video-provider integration and asynchronous jobs
+- [ ] Persistent story and character continuity
 - [ ] Episode assembly, quality checks, and export
+- [ ] Creator-friendly web interface
 
 ## Development
 
-The API lives in `apps/api`. See its README for local setup and test commands.
+The API lives in `apps/api`. See [the API README](apps/api/README.md) for local setup, configuration, and tests.
 
 ## Security
 
 - Never commit `.env` files or API keys.
 - Keep `.env.example` limited to placeholder values.
+- The LLM provider is configurable; no real provider credentials are included.
