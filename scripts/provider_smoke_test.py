@@ -72,15 +72,18 @@ async def run_smoke_test(args: argparse.Namespace) -> int:
         readiness = readiness_response.json()
         print("Provider readiness:")
         print(json.dumps(readiness, indent=2))
-        require(readiness["ready_for_screenplay"], "LLM is not configured; set LLM_API_KEY and LLM_MODEL.")
+        if not args.plan and not args.generate_episode:
+            print("PASS preflight only; no model calls or paid video jobs were submitted.")
+            return 0
+        require(
+            readiness["ready_for_screenplay"],
+            "LLM is not configured; set LLM_API_KEY and LLM_MODEL.",
+        )
         if args.generate_episode:
             require(
                 readiness["ready_for_video"],
                 "Video provider is not configured; set VIDEO_API_TOKEN and VIDEO_MODEL.",
             )
-        if not args.plan and not args.generate_episode:
-            print("PASS preflight only; no model calls or paid video jobs were submitted.")
-            return 0
 
         plan_response = await client.post(
             "/api/stories/plan",
@@ -161,9 +164,9 @@ async def run_smoke_test(args: argparse.Namespace) -> int:
         print(json.dumps(report, indent=2))
         failed_checks = [
             check for check in report.get("checks", [])
-            if isinstance(check, dict) and check.get("passed") is False
+            if isinstance(check, dict) and check.get("status") == "failed"
         ]
-        if failed_checks:
+        if report.get("status") != "passed" or failed_checks:
             print(f"WARNING: {len(failed_checks)} technical quality check(s) failed.")
             return 2
         print("PASS end-to-end provider smoke test")
