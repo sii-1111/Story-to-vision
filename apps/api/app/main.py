@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from app.assembly import EpisodeAssemblyError, assemble_episode
 from app.config import get_settings
+from app.continuity import build_continuity_report
 from app.database import (
     get_project,
     list_projects,
@@ -16,6 +17,8 @@ from app.database import (
 from app.models import (
     EpisodeAssemblyRequest,
     EpisodeAssemblyResponse,
+    ContinuityCheckRequest,
+    ContinuityCheckResponse,
     ProjectListResponse,
     ProjectResponse,
     ProjectSaveRequest,
@@ -76,6 +79,20 @@ async def plan_story(request: StoryRequest) -> StoryPlanResponse:
 
     return StoryPlanResponse(screenplay=screenplay)
 
+
+
+@app.post(
+    "/api/stories/continuity-check",
+    response_model=ContinuityCheckResponse,
+    tags=["stories"],
+    summary="Audit character visual anchors and scene continuity before video generation",
+)
+async def check_story_continuity(
+    request: ContinuityCheckRequest,
+) -> ContinuityCheckResponse:
+    return ContinuityCheckResponse(
+        **build_continuity_report(request.screenplay)
+    )
 
 
 @app.post(
