@@ -333,3 +333,140 @@ def test_openapi_contains_project_persistence_endpoints() -> None:
     paths = client.get("/openapi.json").json()["paths"]
     assert "/api/projects" in paths
     assert "/api/projects/{project_id}" in paths
+
+
+def test_episode_quality_endpoint_rejects_invalid_export_id() -> None:
+    response = client.get("/api/episodes/exports/not-an-id/quality-check")
+    assert response.status_code == 404
+
+
+def test_episode_quality_endpoint_returns_structured_report(monkeypatch, tmp_path) -> None:
+    from app.config import Settings
+
+    report = {
+        "status": "passed",
+        "passed": True,
+        "summary": "5 of 5 checks passed.",
+        "duration_seconds": 32.0,
+        "width": 1080,
+        "height": 1920,
+        "codec": "h264",
+        "frame_rate": "30/1",
+        "size_bytes": 2048,
+        "checks": [
+            {"name": "Video stream", "status": "passed", "details": "Detected 1080×1920 video stream."}
+        ],
+    }
+    export_id = "a" * 32
+    (tmp_path / f"{export_id}.mp4").write_bytes(b"x" * 2048)
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(episode_export_dir=str(tmp_path)),
+    )
+
+    async def fake_inspect_video(path):
+        assert path == tmp_path / f"{export_id}.mp4"
+        return report
+
+    monkeypatch.setattr("app.main.inspect_video", fake_inspect_video)
+    response = client.get(f"/api/episodes/exports/{export_id}/quality-check")
+    assert response.status_code == 200
+    assert response.json()["status"] == "passed"
+    assert response.json()["checks"][0]["name"] == "Video stream"
+
+
+def test_episode_quality_endpoint_returns_404_for_missing_export(monkeypatch, tmp_path) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(episode_export_dir=str(tmp_path)),
+    )
+    response = client.get(f"/api/episodes/exports/{'b' * 32}/quality-check")
+    assert response.status_code == 404
+
+
+def test_quality_inspector_flags_wrong_aspect_ratio_and_decode_errors(monkeypatch, tmp_path) -> None:
+    import json
+
+    import pytest
+
+    from app.quality import inspect_video
+
+    video_path = tmp_path / "sample.mp4"
+    video_path.write_bytes(b"x" * 2048)
+    monkeypatch.setattr("app.quality.shutil.which", lambda name: f"/usr/bin/{name}")
+
+    async def fake_run(*command, timeout=45):
+        if "-show_entries" in command:
+            return (
+                0,
+                json.dumps({
+                    "format": {"duration": "12.0", "size": "2048", "format_name": "mov,mp4"},
+                    "streams": [{
+                        "codec_type": "video",
+                        "codec_name": "h264",
+                        "width": 640,
+                        "height": 360,
+                        "avg_frame_rate": "24/1",
+                    }],
+                }),
+                "",
+            )
+        return 1, "", "decode error: invalid frame"
+
+    monkeypatch.setattr("app.quality._run", fake_run)
+    report = await inspect_video(video_path, expected_duration_seconds=12)
+    assert report["status"] == "failed"
+    assert report["passed"] is False
+    assert next(check for check in report["checks"] if check["name"] == "Vertical format")["status"] == "failed"
+    assert next(check for check in report["checks"] if check["name"] == "Full video decode")["status"] == "failed"
+
+
+def test_quality_inspector_reports_success_for_valid_video_metadata(monkeypatch, tmp_path) -> None:
+    import json
+
+    import pytest
+
+    from app.quality import inspect_video
+
+    video_path = tmp_path / "sample.mp4"
+    video_path.write_bytes(b"x" * 2048)
+    monkeypatch.setattr("app.quality.shutil.which", lambda name: f"/usr/bin/{name}")
+
+    async def fake_run(*command, timeout=45):
+        if "-show_entries" in command:
+            return (
+                0,
+                json.dumps({
+                    "format": {"duration": "12.0", "size": "2048", "format_name": "mov,mp4"},
+                    "streams": [{
+                        "codec_type": "video",
+                        "codec_name": "h264",
+                        "width": 1080,
+                        "height": 1920,
+                        "avg_frame_rate": "30/1",
+                    }],
+                }),
+                "",
+            )
+        return 0, "", ""
+
+    monkeypatch.setattr("app.quality._run", fake_run)
+    report = await inspect_video(video_path, expected_duration_seconds=12)
+    assert report["status"] == "passed"
+    assert all(check["status"] == "passed" for check in report["checks"])
+
+
+def test_quality_inspector_rejects_missing_export(tmp_path) -> None:
+    import pytest
+
+    from app.quality import VideoQualityError, inspect_video
+
+    with pytest.raises(VideoQualityError, match="missing or too small"):
+        await inspect_video(tmp_path / "missing.mp4")
+
+
+def test_openapi_contains_episode_quality_endpoints() -> None:
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/api/episodes/exports/{episode_id}/quality-check" in paths
