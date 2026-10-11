@@ -599,7 +599,7 @@ def test_visual_identity_endpoint_requires_vision_model_configuration(monkeypatc
         "/api/stories/visual-identity-check",
         json={
             "screenplay": _valid_screenplay(),
-            "references": [{"character_id": "mira", "image_base64": "aGVsbG8=", "mime_type": "image/jpeg"}],
+            "references": [{\n                "character_id": "mira",\n                "image_base64": "aGVsbG8=",\n                "mime_type": "image/jpeg",\n            }],
             "frames": [{"scene_number": 1, "image_base64": "aGVsbG8=", "mime_type": "image/jpeg"}],
         },
     )
