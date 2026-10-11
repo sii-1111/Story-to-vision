@@ -139,3 +139,37 @@ class EpisodeAssemblyResponse(BaseModel):
     format: Literal["mp4"] = "mp4"
     aspect_ratio: Literal["9:16"] = "9:16"
     subtitles_included: bool = True
+
+
+class ProjectSaveRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    story: str = Field(min_length=30, max_length=20_000)
+    screenplay: Screenplay | None = None
+    project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+
+
+class ProjectSummary(BaseModel):
+    id: str
+    title: str
+    story: str
+    genre: str
+    visual_style: str
+    language: str
+    created_at: str
+    updated_at: str
+    episode_count: int = 0
+    character_count: int = 0
+
+
+class ProjectDetail(ProjectSummary):
+    episodes: list[dict] = Field(default_factory=list)
+    characters: list[dict] = Field(default_factory=list)
+    generation_jobs: list[dict] = Field(default_factory=list)
+
+
+class ProjectListResponse(BaseModel):
+    projects: list[ProjectSummary]
+
+
+class ProjectResponse(BaseModel):
+    project: ProjectDetail
