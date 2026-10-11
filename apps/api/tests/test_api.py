@@ -43,3 +43,51 @@ def test_openapi_contains_story_planning_endpoint() -> None:
     response = client.get("/openapi.json")
     assert response.status_code == 200
     assert "/api/stories/plan" in response.json()["paths"]
+
+
+def test_scene_regeneration_rejects_scene_number_outside_screenplay() -> None:
+    character = {
+        "id": "mira",
+        "name": "Mira",
+        "age_range": "late 20s",
+        "appearance": "Dark wavy hair, warm brown eyes, and a small silver pendant.",
+        "personality": "Observant, guarded, and deeply loyal to her family.",
+        "relationships": [],
+    }
+    scenes = [
+        {
+            "scene_number": number,
+            "location": f"Coastal house room {number}",
+            "time_of_day": "Evening",
+            "duration_seconds": 8,
+            "characters_present": ["mira"],
+            "action": "Mira studies the old letter, unsure whether to open it.",
+            "dialogue": ["Mira: Not again."],
+            "emotional_beat": "Uneasy anticipation",
+            "visual_direction": "Slow close-up with soft window light and shallow focus.",
+            "transition": "Cut to the letter.",
+        }
+        for number in range(1, 5)
+    ]
+    screenplay = {
+        "title": "The Last Promise",
+        "logline": "A returned daughter finds a letter that changes everything.",
+        "genre": "drama",
+        "language": "English",
+        "visual_style": "cinematic realism",
+        "characters": [character],
+        "scenes": scenes,
+        "cliffhanger": "The letter reveals a name Mira never expected to see.",
+        "continuity_notes": [],
+    }
+    response = client.post(
+        "/api/stories/regenerate-scene",
+        json={"screenplay": screenplay, "scene_number": 5},
+    )
+    assert response.status_code == 422
+
+
+def test_openapi_contains_scene_regeneration_endpoint() -> None:
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    assert "/api/stories/regenerate-scene" in response.json()["paths"]

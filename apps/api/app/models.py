@@ -73,3 +73,25 @@ class Screenplay(BaseModel):
 class StoryPlanResponse(BaseModel):
     status: Literal["completed"] = "completed"
     screenplay: Screenplay
+
+
+class SceneRegenerationRequest(BaseModel):
+    screenplay: Screenplay
+    scene_number: int = Field(ge=1, le=6)
+    instruction: str = Field(
+        default="Improve the scene while preserving story continuity.",
+        min_length=5,
+        max_length=500,
+    )
+
+    @model_validator(mode="after")
+    def requested_scene_must_exist(self) -> "SceneRegenerationRequest":
+        if self.scene_number > len(self.screenplay.scenes):
+            raise ValueError("scene_number must refer to a scene in the supplied screenplay")
+        return self
+
+
+class SceneRegenerationResponse(BaseModel):
+    status: Literal["completed"] = "completed"
+    scene: Scene
+    continuity_notes: list[str] = Field(default_factory=list, max_length=12)
