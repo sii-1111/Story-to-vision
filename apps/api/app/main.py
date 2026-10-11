@@ -16,7 +16,9 @@ from app.config import get_settings
 from app.models import (
     EpisodeAssemblyRequest,
     EpisodeAssemblyResponse,
-    ProjectListResponse,\n    ProjectResponse,\n    ProjectSaveRequest,
+    ProjectListResponse,
+    ProjectResponse,
+    ProjectSaveRequest,
     SceneRegenerationRequest,
     SceneRegenerationResponse,
     StoryPlanResponse,
