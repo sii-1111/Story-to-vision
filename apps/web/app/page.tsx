@@ -60,7 +60,8 @@ export default function CreatorStudio() {
   const [checkingVideo, setCheckingVideo] = useState<number | null>(null);
   const [assemblingEpisode, setAssemblingEpisode] = useState(false);
   const [episodeExport, setEpisodeExport] = useState<EpisodeExport | null>(null);
-  const [qualityReport, setQualityReport] = useState<QualityReport | null>(null);\n  const [continuityReport, setContinuityReport] = useState<ContinuityReport | null>(null);\n  const [checkingContinuity, setCheckingContinuity] = useState(false);
+  const [qualityReport, setQualityReport] = useState<QualityReport | null>(null);
+  const [continuityReport, setContinuityReport] = useState<ContinuityReport | null>(null);\n  const [checkingContinuity, setCheckingContinuity] = useState(false);
   const [checkingQuality, setCheckingQuality] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
