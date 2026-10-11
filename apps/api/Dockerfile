@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml /app/pyproject.toml
-COPY apps/api/app /app/app
+COPY apps/api/app /app/apps/api/app
 
 RUN pip install --no-cache-dir .
 
