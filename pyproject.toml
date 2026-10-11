@@ -46,3 +46,4 @@ known-first-party = ["app"]
 [tool.ruff.lint.per-file-ignores]
 # Prompt text is intentionally multiline prose, not executable Python formatting.
 "apps/api/app/planner.py" = ["E501", "I001"]
+"apps/api/app/visual_identity.py" = ["E501"]

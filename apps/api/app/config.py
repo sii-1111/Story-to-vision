@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://api.openai.com/v1"
     llm_api_key: str = ""
     llm_model: str = ""
+    visual_identity_model: str = ""
     llm_timeout_seconds: float = Field(default=45.0, gt=0, le=180)
 
     video_api_base_url: str = "https://api.replicate.com/v1"

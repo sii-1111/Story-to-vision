@@ -586,3 +586,79 @@ def test_character_continuity_audit_rejects_invalid_screenplay() -> None:
 def test_openapi_contains_character_continuity_endpoint() -> None:
     paths = client.get("/openapi.json").json()["paths"]
     assert "/api/stories/continuity-check" in paths
+
+
+def test_visual_identity_endpoint_requires_vision_model_configuration(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(llm_api_key="test-key", visual_identity_model=""),
+    )
+    response = client.post(
+        "/api/stories/visual-identity-check",
+        json={
+            "screenplay": _valid_screenplay(),
+            "references": [{
+                "character_id": "mira",
+                "image_base64": "aGVsbG8=",
+                "mime_type": "image/jpeg",
+            }],
+            "frames": [{"scene_number": 1, "image_base64": "aGVsbG8=", "mime_type": "image/jpeg"}],
+        },
+    )
+    assert response.status_code == 503
+    assert "VISUAL_IDENTITY_MODEL" in response.json()["detail"]
+
+
+def test_visual_identity_endpoint_validates_unknown_reference_character() -> None:
+    response = client.post(
+        "/api/stories/visual-identity-check",
+        json={
+            "screenplay": _valid_screenplay(),
+            "references": [{"character_id": "unknown", "image_base64": "aGVsbG8="}],
+            "frames": [{"scene_number": 1, "image_base64": "aGVsbG8="}],
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_visual_identity_report_normalizes_model_output() -> None:
+    from app.visual_identity import build_identity_report_payload
+
+    report = build_identity_report_payload({
+        "checks": [{
+            "scene_number": 1,
+            "character_id": "mira",
+            "character_name": "Mira",
+            "verdict": "drift_detected",
+            "similarity_score": 42,
+            "matching_observations": ["dark hair"],
+            "differences": ["pendant not visible"],
+            "recommendation": "Review the frame.",
+        }]
+    })
+    assert report["status"] == "needs_review"
+    assert report["checks"][0]["similarity_score"] == 42
+    assert report["checks"][0]["verdict"] == "drift_detected"
+
+
+def test_visual_identity_report_rejects_invalid_provider_verdict() -> None:
+    import pytest
+
+    from app.visual_identity import build_identity_report_payload
+
+    with pytest.raises(ValueError, match="unsupported verdict"):
+        build_identity_report_payload({
+            "checks": [{
+                "scene_number": 1,
+                "character_id": "mira",
+                "verdict": "definitely_same_person",
+                "similarity_score": 100,
+            }]
+        })
+
+
+def test_visual_identity_endpoint_is_documented_in_openapi() -> None:
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/api/stories/visual-identity-check" in paths
