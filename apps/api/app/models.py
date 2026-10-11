@@ -100,6 +100,7 @@ class SceneRegenerationResponse(BaseModel):
 class VideoGenerationRequest(BaseModel):
     screenplay: Screenplay
     scene_number: int = Field(ge=1, le=6)
+    project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
 
     @model_validator(mode="after")
     def requested_scene_must_exist(self) -> "VideoGenerationRequest":
