@@ -24,6 +24,10 @@ The first milestone establishes a tested FastAPI foundation for story submission
 
 Save a project from Creator Studio to store the original story, latest screenplay, stable character profiles, and provider generation-job history. Use **My episodes** to reopen saved projects. SQLite data and MP4 exports share the Docker Compose `story_data` volume. This MVP is intended for a single trusted creator; authentication, multi-user access controls, database migrations, and cloud object storage remain future work.
 
+## Character continuity bible
+
+Open the **Cast** tab and choose **Audit continuity** to review each character's canonical appearance, reusable visual anchors, and scenes where the screenplay should repeat recognizable traits. The report provides a text-based coverage score and scene-level suggestions before video generation. The existing video prompt builder also injects each character's canonical appearance into every scene prompt. This audit is not face recognition and cannot confirm that generated video pixels preserve identity; human review or a future visual-embedding comparison is still required.
+
 ## Episode technical quality gate
 
 After assembling an MP4, choose **Run quality check** in Creator Studio. The API uses FFprobe to inspect resolution, codec, duration, and stream metadata, then decodes the full video with FFmpeg to catch technical corruption. The report lists each pass/fail result and basic file metadata. It also scans for prolonged black segments (over 2 seconds) and potentially frozen segments (over 3 seconds). These are review signals rather than proof of a bad shot: intentional fades or still shots may need creator review. This is not a computer-vision assessment of character identity, composition, audio, or narrative quality.

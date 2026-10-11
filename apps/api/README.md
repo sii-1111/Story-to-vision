@@ -115,3 +115,8 @@ Save a project before starting scene video generation to associate provider jobs
 ## Episode technical quality checks
 
 After assembling an MP4, request `GET /api/episodes/exports/{episode_id}/quality-check`. The endpoint inspects the video with FFprobe and decodes the full video stream with FFmpeg. It reports dimensions, codec, duration, frame-rate metadata, file size, and individual checks for vertical 1080×1920 output, H.264, usable duration, and full decode. FFmpeg and FFprobe are installed in the API Docker image. It also runs FFmpeg black-frame detection for segments over 2 seconds and freeze detection for segments over 3 seconds. Intentional fades and still shots can trigger these checks, so treat them as review signals. The report does not evaluate character consistency, composition, dialogue timing, or audio quality.
+
+
+## Character continuity audit
+
+POST `/api/stories/continuity-check` with `{ "screenplay": ... }` to receive a text-based continuity report, stable visual anchors extracted from each character's canonical appearance, per-scene matched traits, and recommendations. The score measures whether screenplay action or visual direction repeats appearance terms; it is not a probability of visual identity match. The video prompt builder injects the full canonical character appearance into each scene prompt. Actual generated-frame identity verification is not implemented by this endpoint.

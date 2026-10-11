@@ -558,3 +558,31 @@ def test_quality_inspector_passes_visual_scan_without_long_black_or_freeze(
     checks = {check["name"]: check for check in report["checks"]}
     assert checks["Prolonged black frames"]["status"] == "passed"
     assert checks["Frozen frames"]["status"] == "passed"
+
+
+def test_character_continuity_audit_returns_visual_anchors_and_scene_warnings() -> None:
+    response = client.post(
+        "/api/stories/continuity-check",
+        json={"screenplay": _valid_screenplay()},
+    )
+    assert response.status_code == 200
+    report = response.json()
+    assert 0 <= report["score"] <= 100
+    assert report["status"] in {"ready_for_review", "needs_review"}
+    assert report["characters"]
+    assert report["characters"][0]["visual_anchors"]
+    assert report["characters"][0]["scenes"]
+    assert "not visual face recognition" in report["limitations"]
+
+
+def test_character_continuity_audit_rejects_invalid_screenplay() -> None:
+    response = client.post(
+        "/api/stories/continuity-check",
+        json={"screenplay": {"title": "Missing required screenplay fields"}},
+    )
+    assert response.status_code == 422
+
+
+def test_openapi_contains_character_continuity_endpoint() -> None:
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/api/stories/continuity-check" in paths
