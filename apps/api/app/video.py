@@ -91,7 +91,7 @@ class ReplicateVideoProvider:
                 payload = response.json()
         except (httpx.HTTPError, ValueError) as exc:
             raise VideoProviderError(
-                "The video provider could not start this job. Check the model configuration and retry."
+                "The video provider could not start this job. Check model configuration and retry."
             ) from exc
         if not isinstance(payload, dict) or not payload.get("id"):
             raise VideoProviderError("The video provider returned an invalid job response.")
@@ -138,7 +138,7 @@ class ReplicateVideoProvider:
             "status": status_value,
             "video_url": video_url if status_value == "succeeded" else None,
             "error": (
-                "The provider could not generate this clip. Review the prompt/model settings and retry."
+                "The provider could not generate this clip. Review prompt/model settings and retry."
                 if status_value == "failed"
                 else None
             ),
