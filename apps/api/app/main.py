@@ -62,6 +62,23 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api/system/provider-readiness", tags=["system"])
+async def provider_readiness() -> dict[str, bool]:
+    """Report configuration presence without returning credentials or model secrets."""
+    settings = get_settings()
+    return {
+        "ready_for_screenplay": bool(
+            settings.llm_api_key.strip() and settings.llm_model.strip()
+        ),
+        "ready_for_video": bool(
+            settings.video_api_token.strip() and settings.video_model.strip()
+        ),
+        "ready_for_visual_identity": bool(
+            settings.llm_api_key.strip() and settings.visual_identity_model.strip()
+        ),
+    }
+
+
 @app.post(
     "/api/stories/plan",
     response_model=StoryPlanResponse,

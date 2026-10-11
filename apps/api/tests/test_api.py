@@ -662,3 +662,40 @@ def test_visual_identity_report_rejects_invalid_provider_verdict() -> None:
 def test_visual_identity_endpoint_is_documented_in_openapi() -> None:
     paths = client.get("/openapi.json").json()["paths"]
     assert "/api/stories/visual-identity-check" in paths
+
+
+def test_provider_readiness_reports_configuration_without_secrets(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(
+            llm_api_key="secret-llm",
+            llm_model="text-model",
+            video_api_token="secret-video",
+            video_model="owner/video-model",
+            visual_identity_model="vision-model",
+        ),
+    )
+    response = client.get("/api/system/provider-readiness")
+    assert response.status_code == 200
+    assert response.json() == {
+        "ready_for_screenplay": True,
+        "ready_for_video": True,
+        "ready_for_visual_identity": True,
+    }
+    assert "secret-llm" not in response.text
+    assert "secret-video" not in response.text
+
+
+def test_provider_readiness_reports_missing_configuration(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr("app.main.get_settings", lambda: Settings())
+    response = client.get("/api/system/provider-readiness")
+    assert response.status_code == 200
+    assert response.json() == {
+        "ready_for_screenplay": False,
+        "ready_for_video": False,
+        "ready_for_visual_identity": False,
+    }

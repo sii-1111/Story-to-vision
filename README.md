@@ -33,6 +33,12 @@ Open the **Cast** tab and choose **Audit continuity** to review each character's
 
 After assembling an MP4, choose **Run quality check** in Creator Studio. The API uses FFprobe to inspect resolution, codec, duration, and stream metadata, then decodes the full video with FFmpeg to catch technical corruption. The report lists each pass/fail result and basic file metadata. It also scans for prolonged black segments (over 2 seconds) and potentially frozen segments (over 3 seconds). These are review signals rather than proof of a bad shot: intentional fades or still shots may need creator review. This is not a computer-vision assessment of character identity, composition, audio, or narrative quality.
 
+## Live provider smoke test
+
+Run `python scripts/provider_smoke_test.py` against a running API to check health and provider configuration without calling paid models. Use `--plan` to generate and validate a real screenplay with the configured LLM. Use `--generate-episode` to submit every scene to the configured video provider, wait for completion, assemble an MP4, and run the technical quality gate; this can incur substantial provider charges. Configure credentials in the server's `.env` and choose a compatible Replicate model before using paid generation.
+
+The script defaults to `http://127.0.0.1:8000`; override with `--base-url`. Video polling defaults to 15 minutes and can be changed with `--poll-timeout`. A timeout does not cancel provider jobs; check the provider dashboard before retrying.
+
 ## Development
 
 The API lives in `apps/api`. See [the API README](apps/api/README.md) for local setup, configuration, and tests.
