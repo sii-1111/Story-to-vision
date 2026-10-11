@@ -354,7 +354,11 @@ def test_episode_quality_endpoint_returns_structured_report(monkeypatch, tmp_pat
         "frame_rate": "30/1",
         "size_bytes": 2048,
         "checks": [
-            {"name": "Video stream", "status": "passed", "details": "Detected 1080×1920 video stream."}
+            {
+                "name": "Video stream",
+                "status": "passed",
+                "details": "Detected 1080×1920 video stream.",
+            }
         ],
     }
     export_id = "a" * 32
@@ -386,7 +390,9 @@ def test_episode_quality_endpoint_returns_404_for_missing_export(monkeypatch, tm
     assert response.status_code == 404
 
 
-def test_quality_inspector_flags_wrong_aspect_ratio_and_decode_errors(monkeypatch, tmp_path) -> None:
+def test_quality_inspector_flags_wrong_aspect_ratio_and_decode_errors(
+    monkeypatch, tmp_path
+) -> None:
     import asyncio
     import json
 
@@ -418,8 +424,10 @@ def test_quality_inspector_flags_wrong_aspect_ratio_and_decode_errors(monkeypatc
     report = asyncio.run(inspect_video(video_path, expected_duration_seconds=12))
     assert report["status"] == "failed"
     assert report["passed"] is False
-    assert next(check for check in report["checks"] if check["name"] == "Vertical format")["status"] == "failed"
-    assert next(check for check in report["checks"] if check["name"] == "Full video decode")["status"] == "failed"
+    vertical = next(check for check in report["checks"] if check["name"] == "Vertical format")
+    assert vertical["status"] == "failed"
+    decoding = next(check for check in report["checks"] if check["name"] == "Full video decode")
+    assert decoding["status"] == "failed"
 
 
 def test_quality_inspector_reports_success_for_valid_video_metadata(monkeypatch, tmp_path) -> None:
