@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, JSONResponse
 
-from app.assembly import EpisodeAssemblyError, assemble_episode\nfrom app.config import get_settings
+from app.assembly import EpisodeAssemblyError, assemble_episode
+from app.config import get_settings
 from app.models import (
     EpisodeAssemblyRequest,
     EpisodeAssemblyResponse,
