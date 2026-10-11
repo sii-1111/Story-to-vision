@@ -159,3 +159,33 @@ def _valid_screenplay() -> dict:
         "cliffhanger": "The letter reveals a name Mira never expected to see.",
         "continuity_notes": [],
     }
+
+
+def test_video_provider_normalizes_successful_output() -> None:
+    from app.video import ReplicateVideoProvider
+
+    result = ReplicateVideoProvider._normalize(
+        {
+            "id": "prediction_123",
+            "status": "succeeded",
+            "output": ["https://example.invalid/generated.mp4"],
+        }
+    )
+    assert result == {
+        "job_id": "prediction_123",
+        "status": "succeeded",
+        "video_url": "https://example.invalid/generated.mp4",
+        "error": None,
+    }
+
+
+def test_video_prompt_includes_scene_and_character_continuity() -> None:
+    from app.models import Screenplay
+    from app.video import build_scene_prompt
+
+    screenplay = Screenplay.model_validate(_valid_screenplay())
+    prompt = build_scene_prompt(screenplay, screenplay.scenes[0])
+    assert "Mira" in prompt
+    assert "Dark wavy hair" in prompt
+    assert "9:16" in prompt
+    assert screenplay.scenes[0].action in prompt
