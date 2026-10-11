@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -178,9 +181,6 @@ async def assemble_episode_endpoint(
     summary="Download an assembled MP4 episode",
 )
 async def download_episode(episode_id: str):
-    import re
-    from pathlib import Path
-
     if not re.fullmatch(r"[a-f0-9]{32}", episode_id):
         raise HTTPException(status_code=404, detail="Episode export not found.")
     export_path = (Path(get_settings().episode_export_dir).resolve() / f"{episode_id}.mp4")
