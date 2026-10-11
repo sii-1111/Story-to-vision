@@ -214,6 +214,12 @@ def get_project(
     if row is None:
         raise KeyError("Project not found.")
     result = _project_row(row)
+    result["episode_count"] = conn.execute(
+        "SELECT COUNT(*) FROM episodes WHERE project_id=?", (project_id,)
+    ).fetchone()[0]
+    result["character_count"] = conn.execute(
+        "SELECT COUNT(*) FROM character_profiles WHERE project_id=?", (project_id,)
+    ).fetchone()[0]
     episodes = conn.execute(
         "SELECT * FROM episodes WHERE project_id=? ORDER BY episode_number DESC",
         (project_id,),
