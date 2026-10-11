@@ -20,11 +20,10 @@ Copy-Item .env.example .env
 
 Edit `.env` and set `LLM_API_KEY` and `LLM_MODEL`. `LLM_BASE_URL` defaults to the OpenAI API base URL; change it to your provider's compatible endpoint if needed. Never commit the real `.env` file.
 
-Start the API from `apps/api`:
+Start the API from the repository root so the root `.env` file is discovered:
 
 ```powershell
-cd apps/api
-uvicorn app.main:app --reload
+uvicorn app.main:app --app-dir apps/api --reload
 ```
 
 Open http://127.0.0.1:8000/docs for interactive API docs.
