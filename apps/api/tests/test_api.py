@@ -189,3 +189,57 @@ def test_video_prompt_includes_scene_and_character_continuity() -> None:
     assert "Dark wavy hair" in prompt
     assert "9:16" in prompt
     assert screenplay.scenes[0].action in prompt
+
+
+def test_episode_assembly_requires_one_job_per_scene() -> None:
+    response = client.post(
+        "/api/episodes/assemble",
+        json={"screenplay": _valid_screenplay(), "video_job_ids": ["one"]},
+    )
+    assert response.status_code == 422
+
+
+def test_episode_download_rejects_invalid_export_id() -> None:
+    response = client.get("/api/episodes/exports/../../etc/passwd.mp4")
+    assert response.status_code in {404, 422}
+
+
+def test_episode_download_returns_not_found_for_missing_export(monkeypatch, tmp_path) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(episode_export_dir=str(tmp_path)),
+    )
+    response = client.get("/api/episodes/exports/0123456789abcdef0123456789abcdef.mp4")
+    assert response.status_code == 404
+
+
+def test_episode_export_accepts_only_replicate_delivery_urls() -> None:
+    from app.assembly import _is_allowed_video_url
+
+    assert _is_allowed_video_url("https://replicate.delivery/example/clip.mp4")
+    assert _is_allowed_video_url("https://cdn.replicate.delivery/example/clip.mp4")
+    assert not _is_allowed_video_url("http://replicate.delivery/example/clip.mp4")
+    assert not _is_allowed_video_url("https://replicate.delivery.attacker.invalid/clip.mp4")
+    assert not _is_allowed_video_url("https://user@replicate.delivery/clip.mp4")
+
+
+def test_subtitles_follow_scene_offsets_and_dialogue_order(tmp_path) -> None:
+    from app.assembly import _write_subtitles
+    from app.models import Screenplay
+
+    screenplay = Screenplay.model_validate(_valid_screenplay())
+    path = tmp_path / "dialogue.srt"
+    _write_subtitles(screenplay, path)
+    subtitles = path.read_text(encoding="utf-8")
+    assert "00:00:00,000 --> 00:00:08,000" in subtitles
+    assert "Mira: Not again." in subtitles
+    assert "00:00:08,000 --> 00:00:16,000" in subtitles
+
+
+def test_openapi_contains_episode_assembly_and_download_routes() -> None:
+    response = client.get("/openapi.json")
+    paths = response.json()["paths"]
+    assert "/api/episodes/assemble" in paths
+    assert "/api/episodes/exports/{episode_id}.mp4" in paths
