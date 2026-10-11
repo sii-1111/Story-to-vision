@@ -129,6 +129,48 @@ export default function CreatorStudio() {
     });
   }
 
+
+  async function generateVideo(sceneNumber: number) {
+    if (!screenplay) return;
+    setError("");
+    setGeneratingVideo(sceneNumber);
+    try {
+      const response = await fetch("/api/videos/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ screenplay, scene_number: sceneNumber }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload.detail === "string" ? payload.detail : "Could not start video generation.");
+      }
+      setVideoJobs(current => ({ ...current, [sceneNumber]: payload as VideoJob }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start video generation.");
+    } finally {
+      setGeneratingVideo(null);
+    }
+  }
+
+  async function refreshVideo(sceneNumber: number) {
+    const job = videoJobs[sceneNumber];
+    if (!job) return;
+    setError("");
+    setCheckingVideo(sceneNumber);
+    try {
+      const response = await fetch(`/api/videos/jobs/${encodeURIComponent(job.job_id)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload.detail === "string" ? payload.detail : "Could not check video status.");
+      }
+      setVideoJobs(current => ({ ...current, [sceneNumber]: payload as VideoJob }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not check video status.");
+    } finally {
+      setCheckingVideo(null);
+    }
+  }
+
   return (
     <main className="studio-shell">
       <aside className="sidebar">
