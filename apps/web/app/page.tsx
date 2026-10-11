@@ -230,7 +230,7 @@ export default function CreatorStudio() {
       const response = await fetch("/api/videos/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ screenplay, scene_number: sceneNumber }),
+        body: JSON.stringify({ screenplay, scene_number: sceneNumber, project_id: projectId }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
