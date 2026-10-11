@@ -243,3 +243,83 @@ def test_openapi_contains_episode_assembly_and_download_routes() -> None:
     paths = response.json()["paths"]
     assert "/api/episodes/assemble" in paths
     assert "/api/episodes/exports/{episode_id}.mp4" in paths
+
+
+def test_projects_save_list_restore_screenplay_and_characters(monkeypatch, tmp_path) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.database.get_settings",
+        lambda: Settings(database_path=str(tmp_path / "projects.sqlite3")),
+    )
+    response = client.post(
+        "/api/projects",
+        json={
+            "title": "The Last Promise",
+            "story": VALID_REQUEST["story"],
+            "screenplay": _valid_screenplay(),
+        },
+    )
+    assert response.status_code == 201
+    project = response.json()["project"]
+    project_id = project["id"]
+    assert project["episode_count"] == 1
+    assert project["character_count"] == 1
+    assert project["episodes"][0]["screenplay"]["title"] == "The Last Promise"
+    assert project["characters"][0]["id"] == "mira"
+
+    listed = client.get("/api/projects")
+    assert listed.status_code == 200
+    assert listed.json()["projects"][0]["id"] == project_id
+
+    restored = client.get(f"/api/projects/{project_id}")
+    assert restored.status_code == 200
+    assert restored.json()["project"]["episodes"][0]["screenplay"]["scenes"][0]["scene_number"] == 1
+
+
+def test_saving_existing_project_updates_latest_screenplay_not_duplicate(monkeypatch, tmp_path) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.database.get_settings",
+        lambda: Settings(database_path=str(tmp_path / "projects.sqlite3")),
+    )
+    first = client.post(
+        "/api/projects",
+        json={"title": "The Last Promise", "story": VALID_REQUEST["story"], "screenplay": _valid_screenplay()},
+    )
+    assert first.status_code == 201
+    project_id = first.json()["project"]["id"]
+    updated_screenplay = _valid_screenplay()
+    updated_screenplay["title"] = "The Last Promise — Revised"
+    second = client.post(
+        "/api/projects",
+        json={
+            "title": "The Last Promise",
+            "story": VALID_REQUEST["story"],
+            "screenplay": updated_screenplay,
+            "project_id": project_id,
+        },
+    )
+    assert second.status_code == 201
+    assert second.json()["project"]["episode_count"] == 1
+    assert second.json()["project"]["episodes"][0]["title"] == "The Last Promise — Revised"
+
+
+def test_project_lookup_returns_404_for_unknown_project() -> None:
+    response = client.get("/api/projects/0123456789abcdef0123456789abcdef")
+    assert response.status_code == 404
+
+
+def test_project_save_rejects_invalid_project_id() -> None:
+    response = client.post(
+        "/api/projects",
+        json={"title": "The Last Promise", "story": VALID_REQUEST["story"], "project_id": "not-an-id"},
+    )
+    assert response.status_code == 422
+
+
+def test_openapi_contains_project_persistence_endpoints() -> None:
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/api/projects" in paths
+    assert "/api/projects/{project_id}" in paths
