@@ -2,7 +2,12 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-from app.models import (\n    SceneRegenerationRequest,\n    SceneRegenerationResponse,\n    StoryPlanResponse,\n    StoryRequest,\n)
+from app.models import (
+    SceneRegenerationRequest,
+    SceneRegenerationResponse,
+    StoryPlanResponse,
+    StoryRequest,
+)
 from app.planner import (
     LLMStoryPlanner,
     PlannerNotConfiguredError,
