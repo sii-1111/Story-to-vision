@@ -28,6 +28,9 @@ jobs:
       - name: Test
         run: pytest -q
 
+      - name: Validate provider smoke-test CLI
+        run: python -m py_compile scripts/provider_smoke_test.py && python scripts/provider_smoke_test.py --help
+
   web:
     runs-on: ubuntu-latest
     defaults:
