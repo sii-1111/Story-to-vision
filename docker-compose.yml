@@ -18,6 +18,7 @@ services:
       VIDEO_PROMPT_FIELD: ${VIDEO_PROMPT_FIELD:-prompt}
       VIDEO_ASPECT_RATIO_FIELD: ${VIDEO_ASPECT_RATIO_FIELD:-aspect_ratio}
       VIDEO_DURATION_FIELD: ${VIDEO_DURATION_FIELD:-duration}
+      EPISODE_EXPORT_DIR: /app/data/exports
     ports:
       - "8000:8000"
     healthcheck:
@@ -25,3 +26,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+volumes:
+  episode_exports:
