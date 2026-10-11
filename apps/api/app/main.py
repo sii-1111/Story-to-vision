@@ -5,7 +5,13 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.assembly import EpisodeAssemblyError, assemble_episode
-from app.database import get_project, list_projects, save_project
+from app.database import (
+    get_project,
+    list_projects,
+    record_generation_job,
+    save_project,
+    update_generation_job,
+)
 from app.config import get_settings
 from app.models import (
     EpisodeAssemblyRequest,
