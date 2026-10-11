@@ -118,7 +118,10 @@ async def inspect_video(
     return {
         "status": "passed" if passed else "failed",
         "passed": passed,
-        "summary": f"{sum(item['status'] == 'passed' for item in checks)} of {len(checks)} checks passed.",
+        "summary": (
+            f"{sum(item['status'] == 'passed' for item in checks)} of "
+            f"{len(checks)} checks passed."
+        ),
         "duration_seconds": round(duration, 2),
         "width": width,
         "height": height,
