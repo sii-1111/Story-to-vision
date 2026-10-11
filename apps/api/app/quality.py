@@ -52,7 +52,8 @@ async def inspect_video(
     code, stdout, _ = await _run(
         ffprobe,
         "-v", "error",
-        "-show_entries", "format=duration,format_name,size:stream=codec_type,codec_name,width,height,avg_frame_rate",
+        "-show_entries",
+        "format=duration,format_name,size:stream=codec_type,codec_name,width,height,avg_frame_rate",
         "-of", "json",
         str(video_path),
     )
@@ -72,8 +73,16 @@ async def inspect_video(
         raise VideoQualityError("Export is missing required video metadata.") from exc
 
     checks = [
-        _check("Video stream", width > 0 and height > 0, f"Detected {width}×{height} video stream."),
-        _check("Vertical format", width == 1080 and height == 1920, f"Expected 1080×1920; detected {width}×{height}."),
+        _check(
+            "Video stream",
+            width > 0 and height > 0,
+            f"Detected {width}×{height} video stream.",
+        ),
+        _check(
+            "Vertical format",
+            width == 1080 and height == 1920,
+            f"Expected 1080×1920; detected {width}×{height}.",
+        ),
         _check("H.264 codec", codec == "h264", f"Detected codec: {codec}."),
         _check("Usable duration", duration >= 1, f"Detected {duration:.2f} seconds."),
     ]
@@ -84,12 +93,16 @@ async def inspect_video(
             _check(
                 "Duration matches screenplay",
                 duration_ok,
-                f"Expected about {expected_duration_seconds}s; detected {duration:.2f}s (±{tolerance:.2f}s tolerance).",
+                f"Expected about {expected_duration_seconds}s; detected {duration:.2f}s "
+                f"(±{tolerance:.2f}s tolerance).",
             )
         )
 
     decode_code, _, decode_stderr = await _run(
-        ffmpeg, "-hide_banner", "-v", "error", "-i", str(video_path),
+        ffmpeg,
+        "-hide_banner",
+        "-v", "error",
+        "-i", str(video_path),
         "-map", "0:v:0", "-f", "null", "-", timeout=120,
     )
     decode_ok = decode_code == 0 and not decode_stderr.strip()
