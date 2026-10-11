@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, AudioLines, BookOpen, Check, ChevronDown,
-  CircleHelp, Clapperboard, Clock3, Film, Layers3, LoaderCircle, MessageSquare,
-  Play, Plus, RefreshCw, Settings2, Sparkles, WandSparkles, X,
+  AlertTriangle, CheckCircle2, CircleHelp, Clapperboard, Clock3, Film, Layers3, LoaderCircle, MessageSquare,
+  Play, Plus, RefreshCw, Settings2, ShieldCheck, Sparkles, WandSparkles, X,
 } from "lucide-react";
 
 type Character = {
