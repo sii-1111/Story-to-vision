@@ -115,3 +115,27 @@ class VideoJobResponse(BaseModel):
     ]
     video_url: str | None = None
     error: str | None = None
+
+
+class EpisodeAssemblyRequest(BaseModel):
+    screenplay: Screenplay
+    video_job_ids: list[str] = Field(min_length=4, max_length=6)
+
+    @model_validator(mode="after")
+    def jobs_match_scenes(self) -> "EpisodeAssemblyRequest":
+        if len(self.video_job_ids) != len(self.screenplay.scenes):
+            raise ValueError("Provide exactly one video job ID for every screenplay scene")
+        if len(set(self.video_job_ids)) != len(self.video_job_ids):
+            raise ValueError("Each scene must reference a distinct video job")
+        if any(not job_id.strip() for job_id in self.video_job_ids):
+            raise ValueError("Video job IDs must not be blank")
+        return self
+
+
+class EpisodeAssemblyResponse(BaseModel):
+    status: Literal["completed"] = "completed"
+    episode_id: str
+    download_url: str
+    format: Literal["mp4"] = "mp4"
+    aspect_ratio: Literal["9:16"] = "9:16"
+    subtitles_included: bool = True
