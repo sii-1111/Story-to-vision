@@ -27,19 +27,25 @@ class EpisodeAssemblyError(RuntimeError):
 def _is_allowed_video_url(url: str) -> bool:
     parsed = urlparse(url)
     host = (parsed.hostname or "").lower()
+    try:
+        port = parsed.port
+    except ValueError:
+        return False
     return (
         parsed.scheme == "https"
         and bool(host)
         and any(host == allowed or host.endswith(f".{allowed}") for allowed in ALLOWED_VIDEO_HOSTS)
         and parsed.username is None
         and parsed.password is None
-        and parsed.port in (None, 443)
+        and port in (None, 443)
     )
 
 
 async def _download_clip(url: str, destination: Path) -> None:
     if not _is_allowed_video_url(url):
-        raise EpisodeAssemblyError("Provider returned a video URL outside the approved delivery domain.")
+        raise EpisodeAssemblyError(
+            "Provider returned a video URL outside the approved delivery domain."
+        )
     total = 0
     try:
         async with httpx.AsyncClient(timeout=90, follow_redirects=False) as client:
@@ -54,12 +60,16 @@ async def _download_clip(url: str, destination: Path) -> None:
                     async for chunk in response.aiter_bytes():
                         total += len(chunk)
                         if total > MAX_CLIP_BYTES:
-                            raise EpisodeAssemblyError("A generated clip exceeds the 250 MB limit.")
+                            raise EpisodeAssemblyError(
+                                "A generated clip exceeds the 250 MB limit."
+                            )
                         output.write(chunk)
     except EpisodeAssemblyError:
         raise
     except (httpx.HTTPError, OSError) as exc:
-        raise EpisodeAssemblyError("Could not download a generated clip. Refresh its provider status and retry.") from exc
+        raise EpisodeAssemblyError(
+            "Could not download a generated clip. Refresh its provider status and retry."
+        ) from exc
     if total == 0:
         raise EpisodeAssemblyError("The provider returned an empty video file.")
 
@@ -76,20 +86,21 @@ def _write_subtitles(screenplay: Screenplay, path: Path) -> None:
     offset_ms = 0
     cue = 1
     for scene in screenplay.scenes:
+        scene_duration_ms = scene.duration_seconds * 1000
         dialogue = scene.dialogue
         if dialogue:
-            slot = max(1500, scene.duration_seconds * 1000 // len(dialogue))
-            for line in dialogue:
-                start = offset_ms + (cue - 1) * 0
-                end = min(offset_ms + scene.duration_seconds * 1000, start + slot)
-                safe_line = re.sub(r"[\r\n]+", " ", line).strip()
+            slot_ms = scene_duration_ms // len(dialogue)
+            for index, line in enumerate(dialogue):
+                start = offset_ms + index * slot_ms
+                end = offset_ms + min(scene_duration_ms, (index + 1) * slot_ms)
+                safe_line = re.sub(r"[\\r\\n]+", " ", line).strip()
                 entries.append(
-                    f"{cue}\n{_subtitle_timestamp(start)} --> {_subtitle_timestamp(end)}\n{safe_line}\n"
+                    f"{cue}\\n{_subtitle_timestamp(start)} --> "
+                    f"{_subtitle_timestamp(end)}\\n{safe_line}\\n"
                 )
                 cue += 1
-                offset_ms = start
-        offset_ms += scene.duration_seconds * 1000
-    path.write_text("\n".join(entries), encoding="utf-8")
+        offset_ms += scene_duration_ms
+    path.write_text("\\n".join(entries), encoding="utf-8")
 
 
 async def assemble_episode(
@@ -98,16 +109,23 @@ async def assemble_episode(
     job_ids: list[str],
 ) -> str:
     if len(job_ids) != len(screenplay.scenes):
-        raise EpisodeAssemblyError("Provide one completed video job ID for every screenplay scene.")
+        raise EpisodeAssemblyError(
+            "Provide one completed video job ID for every screenplay scene."
+        )
     if len(set(job_ids)) != len(job_ids):
         raise EpisodeAssemblyError("Each scene must reference a distinct video job.")
+
     provider = ReplicateVideoProvider(settings)
     try:
         jobs = [await provider.retrieve(job_id) for job_id in job_ids]
     except VideoProviderError as exc:
-        raise EpisodeAssemblyError("Could not verify every scene's video job. Refresh status and retry.") from exc
+        raise EpisodeAssemblyError(
+            "Could not verify every scene's video job. Refresh status and retry."
+        ) from exc
     if any(job["status"] != "succeeded" or not job["video_url"] for job in jobs):
-        raise EpisodeAssemblyError("Every scene must have a completed video clip before export.")
+        raise EpisodeAssemblyError(
+            "Every scene must have a completed video clip before export."
+        )
 
     output_dir = Path(settings.episode_export_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -122,7 +140,7 @@ async def assemble_episode(
 
         concat_file = temp_dir / "clips.txt"
         concat_file.write_text(
-            "".join(f"file '{clip.as_posix()}'\n" for clip in clips),
+            "".join(f"file '{clip.as_posix()}'\\n" for clip in clips),
             encoding="utf-8",
         )
         subtitles = temp_dir / "dialogue.srt"
@@ -132,27 +150,50 @@ async def assemble_episode(
         if not ffmpeg:
             raise EpisodeAssemblyError("FFmpeg is not installed on the API server.")
         command = [
-            ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
-            "-f", "concat", "-safe", "0", "-i", str(concat_file),
+            ffmpeg,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(concat_file),
             "-vf",
             "scale=1080:1920:force_original_aspect_ratio=increase,"
             "crop=1080:1920,fps=30,setsar=1,subtitles=" + str(subtitles),
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-            "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart",
-            "-t", str(sum(scene.duration_seconds for scene in screenplay.scenes)),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-an",
+            "-movflags",
+            "+faststart",
+            "-t",
+            str(sum(scene.duration_seconds for scene in screenplay.scenes)),
             str(destination),
         ]
         try:
             process = await asyncio.create_subprocess_exec(
-                *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                *command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
             _, stderr = await asyncio.wait_for(process.communicate(), timeout=300)
         except (OSError, asyncio.TimeoutError) as exc:
             destination.unlink(missing_ok=True)
-            raise EpisodeAssemblyError("Episode assembly timed out or could not start.") from exc
+            raise EpisodeAssemblyError(
+                "Episode assembly timed out or could not start."
+            ) from exc
         if process.returncode != 0 or not destination.exists() or destination.stat().st_size == 0:
             destination.unlink(missing_ok=True)
-            # Keep provider/model internals out of the public response.
-            detail = stderr.decode("utf-8", errors="replace")[-300:]
-            raise EpisodeAssemblyError(f"FFmpeg could not assemble the clips. Check clip compatibility. {detail}")
+            raise EpisodeAssemblyError(
+                "FFmpeg could not assemble the clips. Check that generated clips are compatible."
+            )
     return f"/api/episodes/exports/{export_id}.mp4"
