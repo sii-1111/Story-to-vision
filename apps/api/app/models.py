@@ -193,3 +193,33 @@ class VideoQualityResponse(BaseModel):
     frame_rate: str
     size_bytes: int
     checks: list[VideoQualityCheck]
+
+
+class ContinuityCheckRequest(BaseModel):
+    screenplay: Screenplay
+
+
+class CharacterContinuityScene(BaseModel):
+    scene_number: int
+    anchored: bool
+    matched_traits: list[str]
+    recommendation: str
+
+
+class CharacterContinuityEntry(BaseModel):
+    character_id: str
+    name: str
+    appearance: str
+    personality: str
+    visual_anchors: list[str]
+    scene_count: int
+    scenes: list[CharacterContinuityScene]
+
+
+class ContinuityCheckResponse(BaseModel):
+    score: int = Field(ge=0, le=100)
+    status: Literal["ready_for_review", "needs_review"]
+    summary: str
+    characters: list[CharacterContinuityEntry]
+    warnings: list[str]
+    limitations: str
