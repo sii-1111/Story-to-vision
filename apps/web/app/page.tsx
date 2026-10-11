@@ -22,6 +22,7 @@ type Screenplay = {
   cliffhanger: string; continuity_notes: string[];
 };
 type StoryResponse = { status: "completed"; screenplay: Screenplay };
+type VideoJob = { job_id: string; status: "queued" | "starting" | "processing" | "succeeded" | "failed" | "canceled" | "unknown"; video_url: string | null; error: string | null };
 
 const inspiration = "When Mira returns to her coastal hometown for her sister's engagement, she discovers that the quiet photographer hired for the ceremony is the boy who disappeared from her life seven years ago. They agree to act like strangers, but an old letter hidden inside the family house threatens to reveal why he left.";
 const genres = ["Romance", "Mystery", "Drama", "Fantasy", "Thriller", "Slice of life"];
@@ -46,6 +47,9 @@ export default function CreatorStudio() {
   const [showSettings, setShowSettings] = useState(false);
   const [sceneInstructions, setSceneInstructions] = useState<Record<number, string>>({});
   const [regeneratingScene, setRegeneratingScene] = useState<number | null>(null);
+  const [videoJobs, setVideoJobs] = useState<Record<number, VideoJob>>({});
+  const [generatingVideo, setGeneratingVideo] = useState<number | null>(null);
+  const [checkingVideo, setCheckingVideo] = useState<number | null>(null);
 
   const wordCount = useMemo(() => story.trim() ? story.trim().split(/\s+/).length : 0, [story]);
 
@@ -125,6 +129,48 @@ export default function CreatorStudio() {
     });
   }
 
+
+  async function generateVideo(sceneNumber: number) {
+    if (!screenplay) return;
+    setError("");
+    setGeneratingVideo(sceneNumber);
+    try {
+      const response = await fetch("/api/videos/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ screenplay, scene_number: sceneNumber }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload.detail === "string" ? payload.detail : "Could not start video generation.");
+      }
+      setVideoJobs(current => ({ ...current, [sceneNumber]: payload as VideoJob }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start video generation.");
+    } finally {
+      setGeneratingVideo(null);
+    }
+  }
+
+  async function refreshVideo(sceneNumber: number) {
+    const job = videoJobs[sceneNumber];
+    if (!job) return;
+    setError("");
+    setCheckingVideo(sceneNumber);
+    try {
+      const response = await fetch(`/api/videos/jobs/${encodeURIComponent(job.job_id)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload.detail === "string" ? payload.detail : "Could not check video status.");
+      }
+      setVideoJobs(current => ({ ...current, [sceneNumber]: payload as VideoJob }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not check video status.");
+    } finally {
+      setCheckingVideo(null);
+    }
+  }
+
   return (
     <main className="studio-shell">
       <aside className="sidebar">
@@ -188,9 +234,9 @@ export default function CreatorStudio() {
               <div className="preview-stats"><div><span>FORMAT</span><strong>9:16 <small>vertical</small></strong></div><div><span>EST. LENGTH</span><strong>{duration}s <small>episode</small></strong></div><div><span>SCENES</span><strong>{screenplay ? screenplay.scenes.length.toString().padStart(2, "0") : "—"} <small>{screenplay ? "planned" : "pending"}</small></strong></div></div>
               <div className="preview-tabs"><button className={activeTab === "script" ? "active" : ""} onClick={() => setActiveTab("script")}><BookOpen size={15} /> Script {screenplay && <span>{screenplay.scenes.length}</span>}</button><button className={activeTab === "cast" ? "active" : ""} onClick={() => setActiveTab("cast")}><Layers3 size={15} /> Cast {screenplay && <span>{screenplay.characters.length}</span>}</button></div>
               <div className="preview-body">
-                {!screenplay ? <div className="empty-preview"><div className="empty-icon"><Film size={23} /></div><strong>Your first scene is waiting.</strong><p>Once you shape your story, your screenplay and characters will appear here.</p><div className="empty-steps"><span><Check size={13} /> Story idea</span><ArrowRight size={13} /><span><Clock3 size={13} /> Scene breakdown</span></div></div> : activeTab === "script" ? <div className="scene-list">{screenplay.scenes.map(scene => <article className="scene-card" key={scene.scene_number}><div className="scene-card-top"><span>SCENE {String(scene.scene_number).padStart(2, "0")}</span><span><Clock3 size={12} /> {scene.duration_seconds}s</span></div><h4>{scene.location}</h4><label className="scene-edit-label" htmlFor={`scene-action-${scene.scene_number}`}>Scene action · editable</label><textarea id={`scene-action-${scene.scene_number}`} className="scene-action-editor" value={scene.action} onChange={e => updateSceneAction(scene.scene_number, e.target.value)} rows={3} /><div className="scene-dialogue-preview">{scene.dialogue.slice(0, 2).map((line, i) => <blockquote key={i}>{line}</blockquote>)}</div><label className="scene-edit-label" htmlFor={`scene-instruction-${scene.scene_number}`}>What should change?</label><div className="scene-refine-row"><input id={`scene-instruction-${scene.scene_number}`} value={sceneInstructions[scene.scene_number] || ""} onChange={e => setSceneInstructions(current => ({ ...current, [scene.scene_number]: e.target.value }))} placeholder="More tension, softer dialogue…" maxLength={500} /><button onClick={() => regenerateScene(scene.scene_number)} disabled={regeneratingScene !== null} aria-label={`Regenerate scene ${scene.scene_number}`}>{regeneratingScene === scene.scene_number ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />} Refine</button></div><div className="scene-emotion"><span /> {scene.emotional_beat}</div></article>)}<div className="cliffhanger"><span>THE CLIFFHANGER</span><p>{screenplay.cliffhanger}</p></div>{screenplay.continuity_notes.length > 0 && <div className="continuity-note"><strong>Continuity notes</strong>{screenplay.continuity_notes.map((note, i) => <p key={i}>{note}</p>)}</div>}</div> : <div className="cast-list">{screenplay.characters.map(character => <article className="cast-card" key={character.id}><div className="cast-avatar">{character.name.slice(0, 1).toUpperCase()}</div><div><h4>{character.name}</h4><span>{character.age_range}</span><p>{character.appearance}</p><small>{character.personality}</small></div></article>)}</div>}
+                {!screenplay ? <div className="empty-preview"><div className="empty-icon"><Film size={23} /></div><strong>Your first scene is waiting.</strong><p>Once you shape your story, your screenplay and characters will appear here.</p><div className="empty-steps"><span><Check size={13} /> Story idea</span><ArrowRight size={13} /><span><Clock3 size={13} /> Scene breakdown</span></div></div> : activeTab === "script" ? <div className="scene-list">{screenplay.scenes.map(scene => <article className="scene-card" key={scene.scene_number}><div className="scene-card-top"><span>SCENE {String(scene.scene_number).padStart(2, "0")}</span><span><Clock3 size={12} /> {scene.duration_seconds}s</span></div><h4>{scene.location}</h4><label className="scene-edit-label" htmlFor={`scene-action-${scene.scene_number}`}>Scene action · editable</label><textarea id={`scene-action-${scene.scene_number}`} className="scene-action-editor" value={scene.action} onChange={e => updateSceneAction(scene.scene_number, e.target.value)} rows={3} /><div className="scene-dialogue-preview">{scene.dialogue.slice(0, 2).map((line, i) => <blockquote key={i}>{line}</blockquote>)}</div><label className="scene-edit-label" htmlFor={`scene-instruction-${scene.scene_number}`}>What should change?</label><div className="scene-refine-row"><input id={`scene-instruction-${scene.scene_number}`} value={sceneInstructions[scene.scene_number] || ""} onChange={e => setSceneInstructions(current => ({ ...current, [scene.scene_number]: e.target.value }))} placeholder="More tension, softer dialogue…" maxLength={500} /><button onClick={() => regenerateScene(scene.scene_number)} disabled={regeneratingScene !== null} aria-label={`Regenerate scene ${scene.scene_number}`}>{regeneratingScene === scene.scene_number ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />} Refine</button></div><div className="scene-emotion"><span /> {scene.emotional_beat}</div><div className="video-generation-row"><button className="video-generate-button" onClick={() => generateVideo(scene.scene_number)} disabled={generatingVideo !== null || ["queued", "starting", "processing"].includes(videoJobs[scene.scene_number]?.status || "")}>{generatingVideo === scene.scene_number ? <LoaderCircle className="spin" size={14} /> : <Film size={14} />} {videoJobs[scene.scene_number] ? "Generate again" : "Generate video clip"}</button>{videoJobs[scene.scene_number] && <div className="video-job-status"><span className={`job-status-dot status-${videoJobs[scene.scene_number].status}`} />{videoJobs[scene.scene_number].status.replace("_", " ")}{["queued", "starting", "processing"].includes(videoJobs[scene.scene_number].status) && <button onClick={() => refreshVideo(scene.scene_number)} disabled={checkingVideo !== null}>{checkingVideo === scene.scene_number ? <LoaderCircle className="spin" size={12} /> : <RefreshCw size={12} />} Check status</button>}</div>}{videoJobs[scene.scene_number]?.error && <p className="video-job-error">{videoJobs[scene.scene_number].error}</p>}{videoJobs[scene.scene_number]?.video_url && <video className="generated-video" controls playsInline preload="metadata" src={videoJobs[scene.scene_number].video_url || undefined}>Your browser does not support video playback.</video>}</div></article>)}<div className="cliffhanger"><span>THE CLIFFHANGER</span><p>{screenplay.cliffhanger}</p></div>{screenplay.continuity_notes.length > 0 && <div className="continuity-note"><strong>Continuity notes</strong>{screenplay.continuity_notes.map((note, i) => <p key={i}>{note}</p>)}</div>}</div> : <div className="cast-list">{screenplay.characters.map(character => <article className="cast-card" key={character.id}><div className="cast-avatar">{character.name.slice(0, 1).toUpperCase()}</div><div><h4>{character.name}</h4><span>{character.age_range}</span><p>{character.appearance}</p><small>{character.personality}</small></div></article>)}</div>}
               </div>
-              {screenplay && <button className="continue-button" onClick={() => setError("Screenplay is ready. Direct video generation will be added in a later milestone.")}><Play size={15} /> Continue to episode creation <ArrowDownRight size={15} /></button>}
+              {screenplay && <button className="continue-button" onClick={() => setError("Choose Generate video clip on a scene to create a real provider-generated video.")}><Play size={15} /> Continue to episode creation <ArrowDownRight size={15} /></button>}
               <div className="preview-footnote"><MessageSquare size={13} /> AI-generated drafts are editable starting points.</div>
             </aside>
           </div>

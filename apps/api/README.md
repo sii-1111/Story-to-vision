@@ -59,3 +59,30 @@ Example request:
 ```
 
 The response contains a validated screenplay with 4–6 scenes, stable character IDs, visual directions, dialogue, continuity notes, and a cliffhanger. Generated scene durations are checked against the requested episode length.
+
+## Direct scene video generation
+
+The video adapter submits a selected screenplay scene to Replicate and exposes the provider's asynchronous job status. Configure these variables in the backend-only root `.env` file:
+
+- `VIDEO_API_TOKEN`: Replicate API token.
+- `VIDEO_MODEL`: selected Replicate model in `owner/model` format.
+- `VIDEO_API_BASE_URL`: defaults to `https://api.replicate.com/v1`.
+- `VIDEO_PROMPT_FIELD`, `VIDEO_ASPECT_RATIO_FIELD`, `VIDEO_DURATION_FIELD`: model-specific input field names. Set the aspect-ratio or duration field to an empty value if the selected model does not accept that input.
+
+**Important:** Replicate models do not share one universal input schema. Review the selected model's input schema and set these field names accordingly; some models may need additional inputs or different value types, which should be added to the adapter before use. The initial adapter sends a text prompt, a 9:16 aspect ratio, and a duration capped at 10 seconds. Provider/model usage is paid according to the provider's pricing; no free generation is assumed.
+
+Endpoints:
+
+- `POST /api/videos/jobs` — request a clip for a scene in a validated screenplay.
+- `GET /api/videos/jobs/{job_id}` — retrieve provider status and, on success, the output video URL.
+
+Example request body for `POST /api/videos/jobs`:
+
+```json
+{
+  "screenplay": { "...": "a complete Screenplay object from /api/stories/plan" },
+  "scene_number": 1
+}
+```
+
+Jobs are tracked by the provider; the app does not persist a local job database in this milestone. Use the status endpoint to refresh queued/processing jobs. Generated output URLs are provider-hosted and may expire; download/export persistence and full-episode assembly are future work. Video provider tokens stay on the server and must never be exposed through frontend variables.

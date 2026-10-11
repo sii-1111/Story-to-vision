@@ -7,11 +7,19 @@ from app.models import (
     SceneRegenerationResponse,
     StoryPlanResponse,
     StoryRequest,
+    VideoGenerationRequest,
+    VideoJobResponse,
 )
 from app.planner import (
     LLMStoryPlanner,
     PlannerNotConfiguredError,
     PlannerUpstreamError,
+)
+from app.video import (
+    ReplicateVideoProvider,
+    VideoProviderError,
+    VideoProviderNotConfiguredError,
+    build_scene_prompt,
 )
 
 app = FastAPI(
@@ -79,6 +87,60 @@ async def regenerate_scene(request: SceneRegenerationRequest) -> SceneRegenerati
         ) from exc
 
     return SceneRegenerationResponse(scene=scene, continuity_notes=notes)
+
+
+
+@app.post(
+    "/api/videos/jobs",
+    response_model=VideoJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["video"],
+    summary="Submit a screenplay scene for direct text-to-video generation",
+)
+async def create_video_job(request: VideoGenerationRequest) -> VideoJobResponse:
+    settings = get_settings()
+    provider = ReplicateVideoProvider(settings)
+    scene = request.screenplay.scenes[request.scene_number - 1]
+
+    try:
+        result = await provider.submit(
+            build_scene_prompt(request.screenplay, scene),
+            scene.duration_seconds,
+        )
+    except VideoProviderNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except VideoProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    return VideoJobResponse(**result)
+
+
+@app.get(
+    "/api/videos/jobs/{job_id}",
+    response_model=VideoJobResponse,
+    tags=["video"],
+    summary="Check the status of a video generation job",
+)
+async def get_video_job(job_id: str) -> VideoJobResponse:
+    provider = ReplicateVideoProvider(get_settings())
+    try:
+        result = await provider.retrieve(job_id)
+    except VideoProviderNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except VideoProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    return VideoJobResponse(**result)
 
 @app.exception_handler(Exception)
 async def unexpected_error_handler(
