@@ -38,16 +38,16 @@ from app.planner import (
     PlannerUpstreamError,
 )
 from app.quality import VideoQualityError, inspect_video
-from app.visual_identity import (
-    VisualIdentityNotConfiguredError,
-    VisualIdentityProviderError,
-    audit_visual_identity,
-)
 from app.video import (
     ReplicateVideoProvider,
     VideoProviderError,
     VideoProviderNotConfiguredError,
     build_scene_prompt,
+)
+from app.visual_identity import (
+    VisualIdentityNotConfiguredError,
+    VisualIdentityProviderError,
+    audit_visual_identity,
 )
 
 app = FastAPI(
