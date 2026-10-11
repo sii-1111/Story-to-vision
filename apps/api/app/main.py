@@ -25,12 +25,14 @@ from app.models import (
     StoryRequest,
     VideoGenerationRequest,
     VideoJobResponse,
+    VideoQualityResponse,
 )
 from app.planner import (
     LLMStoryPlanner,
     PlannerNotConfiguredError,
     PlannerUpstreamError,
 )
+from app.quality import VideoQualityError, inspect_video
 from app.video import (
     ReplicateVideoProvider,
     VideoProviderError,
@@ -192,6 +194,40 @@ async def assemble_episode_endpoint(
     episode_id = download_url.rsplit("/", maxsplit=1)[-1].removesuffix(".mp4")
     return EpisodeAssemblyResponse(episode_id=episode_id, download_url=download_url)
 
+
+
+
+@app.post(
+    "/api/episodes/exports/{episode_id}/quality-check",
+    response_model=VideoQualityResponse,
+    tags=["episodes"],
+    summary="Inspect an exported episode for format, duration, codec, and decode errors",
+)
+async def check_episode_quality(episode_id: str) -> VideoQualityResponse:
+    if not re.fullmatch(r"[a-f0-9]{32}", episode_id):
+        raise HTTPException(status_code=404, detail="Episode export not found.")
+    settings = get_settings()
+    export_path = Path(settings.episode_export_dir).resolve() / f"{episode_id}.mp4"
+    if not export_path.is_file():
+        raise HTTPException(status_code=404, detail="Episode export not found.")
+    try:
+        report = await inspect_video(export_path)
+    except VideoQualityError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    return VideoQualityResponse(**report)
+
+
+@app.get(
+    "/api/episodes/exports/{episode_id}/quality-check",
+    response_model=VideoQualityResponse,
+    tags=["episodes"],
+    summary="Retrieve a fresh technical quality report for an exported episode",
+)
+async def get_episode_quality(episode_id: str) -> VideoQualityResponse:
+    return await check_episode_quality(episode_id)
 
 @app.get(
     "/api/episodes/exports/{episode_id}.mp4",

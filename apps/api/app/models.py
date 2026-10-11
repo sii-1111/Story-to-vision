@@ -174,3 +174,22 @@ class ProjectListResponse(BaseModel):
 
 class ProjectResponse(BaseModel):
     project: ProjectDetail
+
+
+class VideoQualityCheck(BaseModel):
+    name: str
+    status: Literal["passed", "failed"]
+    details: str
+
+
+class VideoQualityResponse(BaseModel):
+    status: Literal["passed", "failed"]
+    passed: bool
+    summary: str
+    duration_seconds: float
+    width: int
+    height: int
+    codec: str
+    frame_rate: str
+    size_bytes: int
+    checks: list[VideoQualityCheck]
