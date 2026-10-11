@@ -17,12 +17,16 @@ The first milestone establishes a tested FastAPI foundation for story submission
 - [ ] Durable cloud output downloads
 - [x] Persistent story and character continuity
 - [x] Episode assembly and MP4 export
-- [ ] Automated visual quality checks
+- [x] Automated technical quality checks for exported videos
 - [x] Creator-friendly web interface with scene refinement and video clip controls
 
 ## Persistent creator projects
 
 Save a project from Creator Studio to store the original story, latest screenplay, stable character profiles, and provider generation-job history. Use **My episodes** to reopen saved projects. SQLite data and MP4 exports share the Docker Compose `story_data` volume. This MVP is intended for a single trusted creator; authentication, multi-user access controls, database migrations, and cloud object storage remain future work.
+
+## Episode technical quality gate
+
+After assembling an MP4, choose **Run quality check** in Creator Studio. The API uses FFprobe to inspect resolution, codec, duration, and stream metadata, then decodes the full video with FFmpeg to catch technical corruption. The report lists each pass/fail result and basic file metadata. This is a technical integrity gate, not a computer-vision assessment of character identity, scene aesthetics, audio, or narrative quality.
 
 ## Development
 
