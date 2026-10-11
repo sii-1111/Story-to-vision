@@ -223,3 +223,51 @@ class ContinuityCheckResponse(BaseModel):
     characters: list[CharacterContinuityEntry]
     warnings: list[str]
     limitations: str
+
+
+class VisualReferenceImage(BaseModel):
+    character_id: str = Field(min_length=1, max_length=40)
+    image_base64: str = Field(min_length=4, max_length=5_600_000)
+    mime_type: Literal["image/jpeg", "image/png", "image/webp"] = "image/jpeg"
+
+
+class VisualFrameImage(BaseModel):
+    scene_number: int = Field(ge=1, le=6)
+    timestamp_seconds: float = Field(default=0, ge=0, le=90)
+    image_base64: str = Field(min_length=4, max_length=5_600_000)
+    mime_type: Literal["image/jpeg", "image/png", "image/webp"] = "image/jpeg"
+
+
+class VisualIdentityCheckRequest(BaseModel):
+    screenplay: Screenplay
+    references: list[VisualReferenceImage] = Field(min_length=1, max_length=8)
+    frames: list[VisualFrameImage] = Field(min_length=1, max_length=24)
+
+    @model_validator(mode="after")
+    def validate_frame_scenes_and_references(self) -> "VisualIdentityCheckRequest":
+        known_ids = {character.id for character in self.screenplay.characters}
+        if any(reference.character_id not in known_ids for reference in self.references):
+            raise ValueError("Reference images must use character IDs from the screenplay.")
+        if len({reference.character_id for reference in self.references}) != len(self.references):
+            raise ValueError("Provide at most one reference image per character.")
+        if any(frame.scene_number > len(self.screenplay.scenes) for frame in self.frames):
+            raise ValueError("Each frame scene_number must exist in the supplied screenplay.")
+        return self
+
+
+class VisualIdentityCheck(BaseModel):
+    scene_number: int
+    character_id: str
+    character_name: str
+    verdict: Literal["consistent", "drift_detected", "uncertain"]
+    similarity_score: int = Field(ge=0, le=100)
+    matching_observations: list[str] = Field(default_factory=list, max_length=8)
+    differences: list[str] = Field(default_factory=list, max_length=8)
+    recommendation: str
+
+
+class VisualIdentityCheckResponse(BaseModel):
+    status: Literal["ready_for_review", "needs_review"]
+    checks: list[VisualIdentityCheck]
+    summary: str
+    limitations: str
