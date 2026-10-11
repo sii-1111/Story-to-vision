@@ -33,4 +33,4 @@ To point the web app at another API host, set `STORY_API_URL` in the environment
 
 - The UI does not fabricate screenplay results. If the backend or LLM provider is unavailable, it displays the API error.
 - Configure LLM credentials only on the backend; never use a `NEXT_PUBLIC_*` variable for secrets.
-- Video generation and MP4 export are not implemented in this milestone.
+- Scene-level video generation is available through the backend Replicate adapter. Configure `VIDEO_API_TOKEN` and `VIDEO_MODEL` on the backend and set the input-field variables for the selected model. The UI can submit a scene, check job status, and preview the resulting clip. Full-episode MP4 assembly, durable downloads, and persistence are not implemented yet.
