@@ -174,6 +174,32 @@ export default function CreatorStudio() {
     }
   }
 
+  async function assembleEpisode() {
+    if (!screenplay || !canAssembleEpisode) return;
+    setError("");
+    setEpisodeExport(null);
+    setAssemblingEpisode(true);
+    try {
+      const response = await fetch("/api/episodes/assemble", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          screenplay,
+          video_job_ids: screenplay.scenes.map(scene => videoJobs[scene.scene_number].job_id),
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload.detail === "string" ? payload.detail : "Could not assemble the episode.");
+      }
+      setEpisodeExport(payload as EpisodeExport);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not assemble the episode.");
+    } finally {
+      setAssemblingEpisode(false);
+    }
+  }
+
   return (
     <main className="studio-shell">
       <aside className="sidebar">
