@@ -1,9 +1,9 @@
 import json
 
+import httpx
+
 from app.config import Settings
 from app.models import Screenplay, StoryRequest
-
-import httpx
 
 
 SYSTEM_PROMPT = """You are a professional episodic drama screenwriter and visual continuity
