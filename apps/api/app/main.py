@@ -16,10 +16,10 @@ from app.planner import (
     PlannerUpstreamError,
 )
 from app.video import (
-    build_scene_prompt,
     ReplicateVideoProvider,
     VideoProviderError,
     VideoProviderNotConfiguredError,
+    build_scene_prompt,
 )
 
 app = FastAPI(
@@ -101,7 +101,6 @@ async def create_video_job(request: VideoGenerationRequest) -> VideoJobResponse:
     settings = get_settings()
     provider = ReplicateVideoProvider(settings)
     scene = request.screenplay.scenes[request.scene_number - 1]
-    from app.video import build_scene_prompt
 
     try:
         result = await provider.submit(
