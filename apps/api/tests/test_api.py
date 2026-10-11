@@ -387,9 +387,8 @@ def test_episode_quality_endpoint_returns_404_for_missing_export(monkeypatch, tm
 
 
 def test_quality_inspector_flags_wrong_aspect_ratio_and_decode_errors(monkeypatch, tmp_path) -> None:
+    import asyncio
     import json
-
-    import pytest
 
     from app.quality import inspect_video
 
@@ -416,7 +415,7 @@ def test_quality_inspector_flags_wrong_aspect_ratio_and_decode_errors(monkeypatc
         return 1, "", "decode error: invalid frame"
 
     monkeypatch.setattr("app.quality._run", fake_run)
-    report = await inspect_video(video_path, expected_duration_seconds=12)
+    report = asyncio.run(inspect_video(video_path, expected_duration_seconds=12))
     assert report["status"] == "failed"
     assert report["passed"] is False
     assert next(check for check in report["checks"] if check["name"] == "Vertical format")["status"] == "failed"
@@ -424,9 +423,8 @@ def test_quality_inspector_flags_wrong_aspect_ratio_and_decode_errors(monkeypatc
 
 
 def test_quality_inspector_reports_success_for_valid_video_metadata(monkeypatch, tmp_path) -> None:
+    import asyncio
     import json
-
-    import pytest
 
     from app.quality import inspect_video
 
@@ -459,12 +457,14 @@ def test_quality_inspector_reports_success_for_valid_video_metadata(monkeypatch,
 
 
 def test_quality_inspector_rejects_missing_export(tmp_path) -> None:
+    import asyncio
+
     import pytest
 
     from app.quality import VideoQualityError, inspect_video
 
     with pytest.raises(VideoQualityError, match="missing or too small"):
-        await inspect_video(tmp_path / "missing.mp4")
+        asyncio.run(inspect_video(tmp_path / "missing.mp4"))
 
 
 def test_openapi_contains_episode_quality_endpoints() -> None:
