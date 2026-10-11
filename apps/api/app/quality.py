@@ -148,7 +148,10 @@ async def inspect_video(
                 not black_durations,
                 "No black segment longer than 2 seconds detected."
                 if not black_durations
-                else f"Detected {len(black_durations)} black segment(s) over 2 seconds; review scene transitions.",
+                else (
+                    f"Detected {len(black_durations)} black segment(s) over 2 seconds; "
+                    "review scene transitions."
+                ),
             )
         )
         checks.append(
@@ -157,7 +160,10 @@ async def inspect_video(
                 not freeze_durations,
                 "No frozen segment longer than 3 seconds detected."
                 if not freeze_durations
-                else f"Detected {len(freeze_durations)} potentially frozen segment(s) over 3 seconds; review for intentional still shots.",
+                else (
+                    f"Detected {len(freeze_durations)} potentially frozen segment(s) over 3 seconds; "
+                    "review for intentional still shots."
+                ),
             )
         )
     passed = all(check["status"] == "passed" for check in checks)
