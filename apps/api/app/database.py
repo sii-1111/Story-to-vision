@@ -103,7 +103,7 @@ def list_projects() -> list[dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT p.id, p.title, p.story, p.genre, p.visual_style, p.language,
-                   p.created_at, p.updated_at, COUNT(e.id) AS episode_count,
+                   p.created_at, p.updated_at, COUNT(DISTINCT e.id) AS episode_count,
                    COUNT(DISTINCT c.character_id) AS character_count
             FROM projects p
             LEFT JOIN episodes e ON e.project_id = p.id
@@ -148,20 +148,33 @@ def save_project(
         episode_id = None
         if screenplay:
             latest = conn.execute(
-                "SELECT MAX(episode_number) AS n FROM episodes WHERE project_id=?",
+                "SELECT id, episode_number FROM episodes WHERE project_id=? "
+                "ORDER BY episode_number DESC LIMIT 1",
                 (project_id,),
-            ).fetchone()["n"]
-            episode_number = (latest or 0) + 1
-            episode_id = uuid4().hex
-            conn.execute(
-                """INSERT INTO episodes
-                (id,project_id,episode_number,title,screenplay_json,created_at,updated_at)
-                VALUES (?,?,?,?,?,?,?)""",
-                (
-                    episode_id, project_id, episode_number, screenplay.get("title", title),
-                    json.dumps(screenplay, ensure_ascii=False), timestamp, timestamp,
-                ),
-            )
+            ).fetchone()
+            if latest:
+                episode_id = latest["id"]
+                conn.execute(
+                    "UPDATE episodes SET title=?, screenplay_json=?, updated_at=? WHERE id=?",
+                    (
+                        screenplay.get("title", title),
+                        json.dumps(screenplay, ensure_ascii=False),
+                        timestamp,
+                        episode_id,
+                    ),
+                )
+            else:
+                episode_number = 1
+                episode_id = uuid4().hex
+                conn.execute(
+                    """INSERT INTO episodes
+                    (id,project_id,episode_number,title,screenplay_json,created_at,updated_at)
+                    VALUES (?,?,?,?,?,?,?)""",
+                    (
+                        episode_id, project_id, episode_number, screenplay.get("title", title),
+                        json.dumps(screenplay, ensure_ascii=False), timestamp, timestamp,
+                    ),
+                )
             for character in screenplay.get("characters", []):
                 character_id = character["id"]
                 conn.execute(
