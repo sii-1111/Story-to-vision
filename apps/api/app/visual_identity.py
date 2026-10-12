@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from app.config import Settings
+from app.config import Settings, is_local_openai_compatible_url
 from app.models import VisualIdentityCheckRequest
 
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
@@ -36,6 +36,13 @@ def _image_data_url(image_base64: str, mime_type: str) -> str:
     if not raw or len(raw) > MAX_IMAGE_BYTES:
         raise ValueError("Each image must be non-empty and no larger than 4 MiB.")
     return f"data:{mime_type};base64,{base64.b64encode(raw).decode('ascii')}"
+
+
+def _llm_headers(settings: Settings) -> dict[str, str]:
+    headers: dict[str, str] = {}
+    if settings.llm_api_key.strip():
+        headers["Authorization"] = f"Bearer {settings.llm_api_key.strip()}"
+    return headers
 
 
 def build_identity_report_payload(result: dict[str, Any]) -> dict[str, Any]:
@@ -81,10 +88,15 @@ def build_identity_report_payload(result: dict[str, Any]) -> dict[str, Any]:
 async def audit_visual_identity(
     settings: Settings, request: VisualIdentityCheckRequest
 ) -> dict[str, Any]:
-    if not settings.llm_api_key.strip() or not settings.visual_identity_model.strip():
+    if not settings.visual_identity_model.strip():
         raise VisualIdentityNotConfiguredError(
-            "Configure LLM_API_KEY and VISUAL_IDENTITY_MODEL with a vision-capable "
-            "OpenAI-compatible model before running visual identity checks."
+            "Configure VISUAL_IDENTITY_MODEL with a vision-capable OpenAI-compatible model "
+            "before running visual identity checks."
+        )
+    if not settings.llm_api_key.strip() and not is_local_openai_compatible_url(settings.llm_base_url):
+        raise VisualIdentityNotConfiguredError(
+            "Configure LLM_API_KEY or use a local OpenAI-compatible endpoint (for example Ollama) "
+            "before running visual identity checks."
         )
 
     characters = {character.id: character for character in request.screenplay.characters}
@@ -149,7 +161,7 @@ async def audit_visual_identity(
         async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds) as client:
             response = await client.post(
                 f"{settings.llm_base_url.rstrip('/')}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.llm_api_key}"},
+                headers=_llm_headers(settings),
                 json=payload,
             )
             response.raise_for_status()
@@ -160,5 +172,5 @@ async def audit_visual_identity(
             return build_identity_report_payload(result)
     except (httpx.HTTPError, KeyError, IndexError, TypeError, json.JSONDecodeError, ValueError) as exc:
         raise VisualIdentityProviderError(
-            "The vision provider could not complete the identity review. Check model support and provider settings."
+            "The vision provider could not complete the identity review. Check the model, endpoint, and request payload."
         ) from exc

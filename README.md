@@ -37,6 +37,16 @@ After assembling an MP4, choose **Run quality check** in Creator Studio. The API
 
 Run `python scripts/provider_smoke_test.py` against a running API to check health and provider configuration without calling paid models. Use `--plan` to generate and validate a real screenplay with the configured LLM. Use `--generate-episode` to submit every scene to the configured video provider, wait for completion, assemble an MP4, and run the technical quality gate; this can incur substantial provider charges. Configure credentials in the server's `.env` and choose a compatible Replicate model before using paid generation.
 
+For a free local setup, point `LLM_BASE_URL` at a local OpenAI-compatible endpoint such as Ollama or LM Studio and leave `LLM_API_KEY` blank. Example:
+
+```dotenv
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_API_KEY=
+LLM_MODEL=llama3.1
+```
+
+This works because the API treats local OpenAI-compatible endpoints as valid without an API key.
+
 The script defaults to `http://127.0.0.1:8000`; override with `--base-url`. Video polling defaults to 15 minutes and can be changed with `--poll-timeout`. A timeout does not cancel provider jobs; check the provider dashboard before retrying.
 
 ## Development

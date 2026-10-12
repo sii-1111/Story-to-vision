@@ -39,6 +39,22 @@ def test_planning_requires_provider_configuration(monkeypatch) -> None:
     assert "LLM_API_KEY" in response.json()["detail"]
 
 
+def test_local_llm_endpoint_is_ready_without_api_key(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(
+            llm_base_url="http://localhost:11434/v1",
+            llm_api_key="",
+            llm_model="llama3.1",
+        ),
+    )
+    response = client.get("/api/system/provider-readiness")
+    assert response.status_code == 200
+    assert response.json()["ready_for_screenplay"] is True
+
+
 def test_openapi_contains_story_planning_endpoint() -> None:
     response = client.get("/openapi.json")
     assert response.status_code == 200
