@@ -18,7 +18,15 @@ pip install -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
-Edit `.env` and set `LLM_API_KEY` and `LLM_MODEL`. `LLM_BASE_URL` defaults to the OpenAI API base URL; change it to your provider's compatible endpoint if needed. Never commit the real `.env` file.
+Edit `.env` and set `LLM_MODEL`. For cloud providers, set `LLM_API_KEY`; for free local providers such as Ollama, leave `LLM_API_KEY` blank and point `LLM_BASE_URL` to your local OpenAI-compatible endpoint, for example `http://localhost:11434/v1`. `LLM_BASE_URL` defaults to the OpenAI API base URL; change it to your provider's compatible endpoint if needed. Never commit the real `.env` file.
+
+Example local free-provider setup:
+
+```dotenv
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_API_KEY=
+LLM_MODEL=llama3.1
+```
 
 Start the API from the repository root so the root `.env` file is discovered:
 
@@ -30,7 +38,7 @@ Open http://127.0.0.1:8000/docs for interactive API docs.
 
 ## Provider readiness and live smoke test
 
-`GET /api/system/provider-readiness` reports whether screenplay generation, video generation, and visual identity review have their required configuration present. It returns booleans only and never exposes credentials.
+`GET /api/system/provider-readiness` reports whether screenplay generation, video generation, and visual identity review have their required configuration present. It returns booleans only and never exposes credentials. Local OpenAI-compatible endpoints such as Ollama or LM Studio are accepted without a bearer token.
 
 From the repository root, start the API and run a no-cost configuration preflight:
 

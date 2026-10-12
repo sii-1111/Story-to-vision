@@ -2,7 +2,7 @@ import json
 
 import httpx
 
-from app.config import Settings
+from app.config import Settings, is_local_openai_compatible_url
 from app.models import Screenplay, StoryRequest
 
 
@@ -61,6 +61,7 @@ timeline, and narrative purpose. Do not introduce unlisted characters. Follow th
 where it does not contradict screenplay continuity.
 """
 
+
 class PlannerNotConfiguredError(RuntimeError):
     """Raised when no usable LLM credentials/model have been configured."""
 
@@ -75,10 +76,26 @@ class LLMStoryPlanner:
     def __init__(self, settings: Settings):
         self.settings = settings
 
+    def _llm_headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        if self.settings.llm_api_key.strip():
+            headers["Authorization"] = f"Bearer {self.settings.llm_api_key.strip()}"
+        return headers
+
+    def _llm_is_configured(self) -> bool:
+        return bool(
+            self.settings.llm_model.strip()
+            and (
+                self.settings.llm_api_key.strip()
+                or is_local_openai_compatible_url(self.settings.llm_base_url)
+            )
+        )
+
     async def plan(self, request: StoryRequest) -> Screenplay:
-        if not self.settings.llm_api_key.strip() or not self.settings.llm_model.strip():
+        if not self._llm_is_configured():
             raise PlannerNotConfiguredError(
-                "Configure LLM_API_KEY and LLM_MODEL in the API environment."
+                "Configure LLM_MODEL in the API environment; local OpenAI-compatible endpoints "
+                "such as Ollama or LM Studio may omit LLM_API_KEY."
             )
 
         payload = {
@@ -104,7 +121,7 @@ class LLMStoryPlanner:
             ],
         }
         url = f"{self.settings.llm_base_url.rstrip('/')}/chat/completions"
-        headers = {"Authorization": f"Bearer {self.settings.llm_api_key}"}
+        headers = self._llm_headers()
 
         try:
             async with httpx.AsyncClient(timeout=self.settings.llm_timeout_seconds) as client:
@@ -135,9 +152,10 @@ class LLMStoryPlanner:
     async def regenerate_scene(self, screenplay, scene_number: int, instruction: str):
         from app.models import Scene
 
-        if not self.settings.llm_api_key.strip() or not self.settings.llm_model.strip():
+        if not self._llm_is_configured():
             raise PlannerNotConfiguredError(
-                "Configure LLM_API_KEY and LLM_MODEL in the API environment."
+                "Configure LLM_MODEL in the API environment; local OpenAI-compatible endpoints "
+                "such as Ollama or LM Studio may omit LLM_API_KEY."
             )
 
         original = next(
@@ -163,7 +181,7 @@ class LLMStoryPlanner:
             ],
         }
         url = f"{self.settings.llm_base_url.rstrip('/')}/chat/completions"
-        headers = {"Authorization": f"Bearer {self.settings.llm_api_key}"}
+        headers = self._llm_headers()
         try:
             async with httpx.AsyncClient(timeout=self.settings.llm_timeout_seconds) as client:
                 response = await client.post(url, headers=headers, json=payload)

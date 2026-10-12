@@ -1,7 +1,14 @@
 from functools import lru_cache
+from urllib.parse import urlparse
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def is_local_openai_compatible_url(url: str) -> bool:
+    """Return true for local OpenAI-compatible providers such as Ollama or LM Studio."""
+    host = (urlparse(url).hostname or "").lower()
+    return host in {"localhost", "127.0.0.1", "0.0.0.0"} or host.endswith(".local")
 
 
 class Settings(BaseSettings):
