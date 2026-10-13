@@ -11,7 +11,8 @@ supervisor. Convert the supplied story into a shootable screenplay for one
 short vertical-video episode. Return ONLY a valid JSON object matching the
 requested schema.
 Rules:
-- Create 4 to 6 scenes; their durations should sum to within 20% of the requested episode duration.
+- Create exactly 5 scenes.
+- Copy the supplied scene_duration_targets into each scene's duration_seconds, in order. These targets sum exactly to the requested episode duration; do not alter them.
 - Preserve the source story's core intent. Do not invent major facts that contradict it.
 - Give each recurring character a stable ID (lowercase snake_case) and
   concrete, repeatable visual traits.
@@ -60,6 +61,14 @@ Preserve the scene number, established character IDs, core story facts, visual s
 timeline, and narrative purpose. Do not introduce unlisted characters. Follow the creator instruction only
 where it does not contradict screenplay continuity.
 """
+
+
+def _scene_duration_targets(episode_duration_seconds: int) -> list[int]:
+    base_duration, remainder = divmod(episode_duration_seconds, 5)
+    return [
+        base_duration + int(index < remainder)
+        for index in range(5)
+    ]
 
 
 class PlannerNotConfiguredError(RuntimeError):
@@ -114,6 +123,9 @@ class LLMStoryPlanner:
                             "visual_style": request.visual_style,
                             "language": request.language,
                             "episode_duration_seconds": request.episode_duration_seconds,
+                            "scene_duration_targets": _scene_duration_targets(
+                                request.episode_duration_seconds
+                            ),
                         },
                         ensure_ascii=False,
                     ),
@@ -138,13 +150,12 @@ class LLMStoryPlanner:
                 "Check the provider settings and try again."
             ) from exc
 
-        expected_duration = request.episode_duration_seconds
-        actual_duration = sum(scene.duration_seconds for scene in screenplay.scenes)
-        tolerance = max(3, round(expected_duration * 0.2))
-        if abs(actual_duration - expected_duration) > tolerance:
+        expected_durations = _scene_duration_targets(request.episode_duration_seconds)
+        actual_durations = [scene.duration_seconds for scene in screenplay.scenes]
+        if actual_durations != expected_durations:
             raise PlannerUpstreamError(
-                f"Generated scene duration ({actual_duration}s) is outside the "
-                f"allowed range for a {expected_duration}s episode. Please retry."
+                "Generated screenplay must contain exactly 5 scenes with durations "
+                f"{expected_durations} seconds; received {actual_durations}."
             )
 
         return screenplay

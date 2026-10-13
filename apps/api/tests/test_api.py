@@ -39,6 +39,64 @@ def test_planning_requires_provider_configuration(monkeypatch) -> None:
     assert "LLM_API_KEY" in response.json()["detail"]
 
 
+def test_planner_duration_targets_sum_to_requested_duration() -> None:
+    from app.planner import _scene_duration_targets
+
+    assert _scene_duration_targets(45) == [9, 9, 9, 9, 9]
+    assert _scene_duration_targets(46) == [10, 9, 9, 9, 9]
+    assert _scene_duration_targets(15) == [3, 3, 3, 3, 3]
+
+
+def test_planner_rejects_scene_durations_outside_requested_targets(monkeypatch) -> None:
+    import asyncio
+    import json
+
+    import pytest
+
+    from app.config import Settings
+    from app.models import StoryRequest
+    from app.planner import LLMStoryPlanner, PlannerUpstreamError
+
+    screenplay = _valid_screenplay()
+    screenplay["scenes"].append({**screenplay["scenes"][-1], "scene_number": 5})
+    for scene in screenplay["scenes"]:
+        scene["duration_seconds"] = 8
+
+    class MockResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": json.dumps(screenplay)}}]}
+
+    class MockAsyncClient:
+        def __init__(self, timeout: float) -> None:
+            assert timeout > 0
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+            assert exc_type is None
+            assert exc_value is None
+            assert traceback is None
+
+        async def post(self, url: str, headers: dict, json: dict) -> MockResponse:
+            assert url.endswith("/chat/completions")
+            assert headers["Authorization"] == "Bearer test-token"
+            assert json["model"] == "test-model"
+            return MockResponse()
+
+    monkeypatch.setattr("app.planner.httpx.AsyncClient", MockAsyncClient)
+    planner = LLMStoryPlanner(
+        Settings(_env_file=None, llm_api_key="test-token", llm_model="test-model")
+    )
+    request = StoryRequest(title="The Last Promise", story=VALID_REQUEST["story"])
+
+    with pytest.raises(PlannerUpstreamError, match="exactly 5 scenes"):
+        asyncio.run(planner.plan(request))
+
+
 def test_local_llm_endpoint_is_ready_without_api_key(monkeypatch) -> None:
     from app.config import Settings
 
@@ -53,6 +111,32 @@ def test_local_llm_endpoint_is_ready_without_api_key(monkeypatch) -> None:
     response = client.get("/api/system/provider-readiness")
     assert response.status_code == 200
     assert response.json()["ready_for_screenplay"] is True
+
+
+def test_docker_host_llm_endpoint_is_ready_without_api_key(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(
+            llm_base_url="http://host.docker.internal:11434/v1",
+            llm_api_key="",
+            llm_model="llama3.1",
+        ),
+    )
+    response = client.get("/api/system/provider-readiness")
+    assert response.status_code == 200
+    assert response.json()["ready_for_screenplay"] is True
+
+
+def test_planner_builds_bearer_header_for_cloud_provider() -> None:
+    from app.config import Settings
+    from app.planner import LLMStoryPlanner
+
+    planner = LLMStoryPlanner(
+        Settings(_env_file=None, llm_api_key="test-token", llm_model="test-model")
+    )
+    assert planner._llm_headers() == {"Authorization": "Bearer test-token"}
 
 
 def test_openapi_contains_story_planning_endpoint() -> None:
@@ -707,7 +791,7 @@ def test_provider_readiness_reports_configuration_without_secrets(monkeypatch) -
 def test_provider_readiness_reports_missing_configuration(monkeypatch) -> None:
     from app.config import Settings
 
-    monkeypatch.setattr("app.main.get_settings", lambda: Settings())
+    monkeypatch.setattr("app.main.get_settings", lambda: Settings(_env_file=None))
     response = client.get("/api/system/provider-readiness")
     assert response.status_code == 200
     assert response.json() == {

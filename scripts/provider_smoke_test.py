@@ -12,7 +12,6 @@ from typing import Any
 
 import httpx
 
-
 SAMPLE_STORY = (
     "Mira returns to her coastal hometown after five years and finds an unopened letter "
     "from her childhood friend Arun. As a storm approaches, she learns he is leaving at dawn, "
@@ -51,6 +50,12 @@ def parse_args() -> argparse.Namespace:
         default=5.0,
         help="Seconds between video status checks (default: 5).",
     )
+    parser.add_argument(
+        "--request-timeout",
+        type=int,
+        default=210,
+        help="Maximum seconds to wait for screenplay generation (default: 210).",
+    )
     return parser.parse_args()
 
 
@@ -77,7 +82,8 @@ async def run_smoke_test(args: argparse.Namespace) -> int:
             return 0
         require(
             readiness["ready_for_screenplay"],
-            "LLM is not configured; set LLM_API_KEY and LLM_MODEL.",
+            "LLM is not configured; set LLM_MODEL and either LLM_API_KEY for a hosted "
+            "provider or LLM_BASE_URL for a local OpenAI-compatible provider.",
         )
         if args.generate_episode:
             require(
@@ -95,11 +101,16 @@ async def run_smoke_test(args: argparse.Namespace) -> int:
                 "language": "English",
                 "episode_duration_seconds": 45,
             },
+            timeout=httpx.Timeout(args.request_timeout, connect=10.0),
         )
         plan_response.raise_for_status()
         screenplay = plan_response.json()["screenplay"]
         scenes = screenplay["scenes"]
-        require(4 <= len(scenes) <= 6, "Generated screenplay must contain 4 to 6 scenes.")
+        require(len(scenes) == 5, "Generated screenplay must contain exactly 5 scenes.")
+        require(
+            [scene["duration_seconds"] for scene in scenes] == [9, 9, 9, 9, 9],
+            "Generated screenplay scenes must each be exactly 9 seconds for a 45-second test.",
+        )
         print(f"PASS live LLM screenplay: {len(scenes)} scenes, {screenplay['title']!r}")
         if not args.generate_episode:
             return 0
@@ -175,8 +186,8 @@ async def run_smoke_test(args: argparse.Namespace) -> int:
 
 def main() -> None:
     args = parse_args()
-    if args.poll_timeout < 1 or args.poll_interval <= 0:
-        raise SystemExit("--poll-timeout and --poll-interval must be positive.")
+    if args.poll_timeout < 1 or args.poll_interval <= 0 or args.request_timeout < 1:
+        raise SystemExit("--poll-timeout, --poll-interval, and --request-timeout must be positive.")
     try:
         exit_code = asyncio.run(run_smoke_test(args))
     except (httpx.HTTPError, KeyError, RuntimeError, ValueError) as exc:

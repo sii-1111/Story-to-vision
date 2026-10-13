@@ -5,7 +5,7 @@ FastAPI service for validating story input and generating a structured short-epi
 ## Requirements
 
 - Python 3.11+
-- An API key and model name for a compatible LLM provider to generate screenplays
+- A model name for a compatible LLM provider; a local Ollama or LM Studio setup can run without an API key
 
 ## Run locally (PowerShell)
 
@@ -18,7 +18,7 @@ pip install -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
-Edit `.env` and set `LLM_MODEL`. For cloud providers, set `LLM_API_KEY`; for free local providers such as Ollama, leave `LLM_API_KEY` blank and point `LLM_BASE_URL` to your local OpenAI-compatible endpoint, for example `http://localhost:11434/v1`. `LLM_BASE_URL` defaults to the OpenAI API base URL; change it to your provider's compatible endpoint if needed. Never commit the real `.env` file.
+Edit `.env` and set `LLM_MODEL`. For cloud providers, set `LLM_API_KEY`; for local providers such as Ollama, leave `LLM_API_KEY` blank and point `LLM_BASE_URL` to the local OpenAI-compatible endpoint. Install/start Ollama and download a model (for example, `ollama pull llama3.1`) before running the API. `LLM_BASE_URL` defaults to the OpenAI API base URL; change it to your provider's compatible endpoint if needed. Never commit the real `.env` file.
 
 Example local free-provider setup:
 
@@ -26,9 +26,10 @@ Example local free-provider setup:
 LLM_BASE_URL=http://localhost:11434/v1
 LLM_API_KEY=
 LLM_MODEL=llama3.1
+LLM_TIMEOUT_SECONDS=180
 ```
 
-Start the API from the repository root so the root `.env` file is discovered:
+Local generation runs on your own hardware and avoids hosted LLM API charges. If you run the API in Docker Compose, use `LLM_BASE_URL=http://host.docker.internal:11434/v1` so the container can reach Ollama on the host. Start the API from the repository root so the root `.env` file is discovered:
 
 ```powershell
 uvicorn app.main:app --app-dir apps/api --reload
@@ -58,7 +59,7 @@ To submit all scene clips, wait for the video provider, assemble the episode, an
 python scripts/provider_smoke_test.py --generate-episode
 ```
 
-Use `--base-url http://localhost:8000` for a different API host and `--poll-timeout 1200` to wait up to 20 minutes. Timeouts do not cancel remote jobs. Inspect the provider dashboard before retrying to avoid duplicate charges. Configure `LLM_API_KEY`, `LLM_MODEL`, `VIDEO_API_TOKEN`, and `VIDEO_MODEL` in the API environment first; model-specific Replicate input fields must also match the selected model.
+Use `--base-url http://localhost:8000` for a different API host, `--poll-timeout 1200` to wait up to 20 minutes, and `--request-timeout 300` if local screenplay generation needs more time. Local models run on your own hardware and may be slower than hosted providers. Timeouts do not cancel remote video jobs. Inspect the provider dashboard before retrying to avoid duplicate charges. Configure `LLM_API_KEY` (not required for local Ollama/LM Studio), `LLM_MODEL`, `VIDEO_API_TOKEN`, and `VIDEO_MODEL` in the API environment first; model-specific Replicate input fields must also match the selected model.
 
 ## Tests
 
@@ -90,7 +91,7 @@ Example request:
 }
 ```
 
-The response contains a validated screenplay with 4–6 scenes, stable character IDs, visual directions, dialogue, continuity notes, and a cliffhanger. Generated scene durations are checked against the requested episode length.
+The response contains a validated screenplay with exactly five scenes, stable character IDs, visual directions, dialogue, continuity notes, and a cliffhanger. Scene durations are distributed to match the requested episode duration exactly.
 
 ## Direct scene video generation
 
