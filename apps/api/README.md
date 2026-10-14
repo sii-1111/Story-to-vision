@@ -39,6 +39,9 @@ Open http://127.0.0.1:8000/docs for interactive API docs.
 
 ## Provider readiness and live smoke test
 
+For a **no-cost local endpoint check**, request `GET /api/system/local-model-readiness`. It checks the configured local provider's `/models` endpoint and whether `LLM_MODEL` appears in its model list. It does not generate tokens or contact hosted providers. If the endpoint is not reachable, verify the local server is running and that `LLM_BASE_URL` is reachable from where the API runs.
+
+
 `GET /api/system/provider-readiness` reports whether screenplay generation, video generation, and visual identity review have their required configuration present. It returns booleans only and never exposes credentials. Local OpenAI-compatible endpoints such as Ollama or LM Studio are accepted without a bearer token.
 
 From the repository root, start the API and run a no-cost configuration preflight:
