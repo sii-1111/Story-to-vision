@@ -799,3 +799,102 @@ def test_provider_readiness_reports_missing_configuration(monkeypatch) -> None:
         "ready_for_video": False,
         "ready_for_visual_identity": False,
     }
+
+
+def test_local_model_readiness_reports_installed_model(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(
+            _env_file=None,
+            llm_base_url="http://localhost:11434/v1",
+            llm_api_key="",
+            llm_model="llama3.1",
+        ),
+    )
+
+    class MockResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return {"data": [{"id": "llama3.1:latest"}, {"id": "qwen2.5:7b"}]}
+
+    class MockAsyncClient:
+        def __init__(self, timeout: float) -> None:
+            assert timeout == 5.0
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+            pass
+
+        async def get(self, url: str) -> MockResponse:
+            assert url == "http://localhost:11434/v1/models"
+            return MockResponse()
+
+    monkeypatch.setattr("app.main.httpx.AsyncClient", MockAsyncClient)
+    response = client.get("/api/system/local-model-readiness")
+    assert response.status_code == 200
+    assert response.json()["reachable"] is True
+    assert response.json()["model_available"] is True
+
+
+def test_local_model_readiness_reports_missing_model(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(
+            _env_file=None,
+            llm_base_url="http://localhost:11434/v1",
+            llm_api_key="",
+            llm_model="not-installed",
+        ),
+    )
+
+    class MockResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict:
+            return {"data": [{"id": "llama3.1:latest"}]}
+
+    class MockAsyncClient:
+        def __init__(self, timeout: float) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+            pass
+
+        async def get(self, url: str) -> MockResponse:
+            return MockResponse()
+
+    monkeypatch.setattr("app.main.httpx.AsyncClient", MockAsyncClient)
+    response = client.get("/api/system/local-model-readiness")
+    assert response.status_code == 200
+    assert response.json()["reachable"] is True
+    assert response.json()["model_available"] is False
+
+
+def test_local_model_readiness_does_not_probe_hosted_provider(monkeypatch) -> None:
+    from app.config import Settings
+
+    monkeypatch.setattr(
+        "app.main.get_settings",
+        lambda: Settings(
+            _env_file=None,
+            llm_base_url="https://api.openai.com/v1",
+            llm_api_key="",
+            llm_model="example-model",
+        ),
+    )
+    response = client.get("/api/system/local-model-readiness")
+    assert response.status_code == 200
+    assert response.json()["is_local_provider"] is False
+    assert response.json()["reachable"] is None
