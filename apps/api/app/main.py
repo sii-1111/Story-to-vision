@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -88,6 +89,74 @@ async def provider_readiness() -> dict[str, bool]:
         "ready_for_visual_identity": visual_identity_ready,
     }
 
+
+@app.get("/api/system/local-model-readiness", tags=["system"])
+async def local_model_readiness() -> dict[str, bool | str | None]:
+    """Check a local OpenAI-compatible model endpoint without generating tokens."""
+    settings = get_settings()
+    model = settings.llm_model.strip()
+    if not is_local_openai_compatible_url(settings.llm_base_url):
+        return {
+            "is_local_provider": False,
+            "configured": bool(model),
+            "reachable": None,
+            "model_available": None,
+            "model": model or None,
+            "message": "The configured LLM endpoint is not recognized as a local provider.",
+        }
+    if not model:
+        return {
+            "is_local_provider": True,
+            "configured": False,
+            "reachable": None,
+            "model_available": False,
+            "model": None,
+            "message": "Set LLM_MODEL to the name of a model installed in your local provider.",
+        }
+
+    models_url = f"{settings.llm_base_url.rstrip('/')}/models"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(models_url)
+            response.raise_for_status()
+            payload = response.json()
+        model_entries = payload.get("data", [])
+        installed_models = [
+            entry.get("id", "")
+            for entry in model_entries
+            if isinstance(entry, dict) and isinstance(entry.get("id"), str)
+        ]
+        wanted = model.casefold()
+        available = any(
+            installed.casefold() == wanted
+            or installed.casefold() == f"{wanted}:latest"
+            for installed in installed_models
+        )
+        return {
+            "is_local_provider": True,
+            "configured": True,
+            "reachable": True,
+            "model_available": available,
+            "model": model,
+            "message": (
+                "Local model endpoint is reachable and the configured model is available."
+                if available
+                else "Local endpoint is reachable, but the configured model was not found. "
+                "Check LLM_MODEL or download the model first."
+            ),
+        }
+    except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+        return {
+            "is_local_provider": True,
+            "configured": True,
+            "reachable": False,
+            "model_available": False,
+            "model": model,
+            "message": (
+                "Could not reach the local model endpoint. Start Ollama or LM Studio and "
+                "check LLM_BASE_URL from the API container or host."
+            ),
+        }
 
 @app.post(
     "/api/stories/plan",
