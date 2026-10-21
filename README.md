@@ -65,3 +65,15 @@ The API lives in `apps/api`. See [the API README](apps/api/README.md) for local 
 - Keep `.env.example` limited to placeholder values.
 - LLM and video providers are configured server-side; no real provider credentials are included.
 - Replicate model input fields vary; configure the chosen model schema before generating clips.
+
+## Local-only screenplay validation
+
+After starting Ollama or LM Studio and the API, run this smoke test from the repository root:
+
+```powershell
+python scripts/local_screenplay_smoke_test.py
+```
+
+The script first checks `/api/system/local-model-readiness` and refuses to generate unless the configured endpoint is recognized as local, reachable, and reports the configured model as installed. It then generates a real 45-second screenplay and independently validates the returned Pydantic screenplay schema, five sequential scenes, and total duration. It never falls back to a hosted LLM and does not submit video jobs. Generation uses your local hardware; no hosted inference API charges are expected.
+
+For Docker Compose, configure `LLM_BASE_URL=http://host.docker.internal:11434/v1` when Ollama runs on the host. For a local API process, use `http://localhost:11434/v1`. Set `LLM_MODEL` to the exact installed model identifier and increase `LLM_TIMEOUT_SECONDS` if needed.
