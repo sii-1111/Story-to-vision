@@ -30,6 +30,8 @@ jobs:
 
       - name: Validate provider smoke-test CLI
         run: python -m py_compile scripts/provider_smoke_test.py && python scripts/provider_smoke_test.py --help
+      - name: Validate local screenplay smoke-test CLI
+        run: python -m py_compile scripts/local_screenplay_smoke_test.py && python scripts/local_screenplay_smoke_test.py --help
 
   web:
     runs-on: ubuntu-latest
