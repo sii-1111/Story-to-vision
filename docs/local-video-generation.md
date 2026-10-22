@@ -46,3 +46,17 @@ A successful API response is not a successful video. Decode the resulting file a
 ## 5. What this milestone does not claim
 
 The hardware preflight is not a model benchmark and does not install or generate a clip. The final model choice remains pending until the user's actual hardware and a reproducible local render test are known.
+
+## Decision for a 4 GiB NVIDIA GPU with about 12 GiB system RAM
+
+This hardware profile is **experimental-only** for local video generation. Do not start by downloading a full-size LTX or Wan checkpoint: runtime overhead, model weights, activations, and frame buffers can exceed available memory. CPU offload may reduce VRAM demand but often makes rendering much slower and can still exhaust system RAM.
+
+Recommended order:
+
+1. Keep screenplay generation local and continue building/testing the creator workflow.
+2. If a local video experiment is still desired, inspect the official CogVideoX-2B Diffusers documentation and exact checkpoint license first; investigate quantization and CPU offload. Do not assume the 2B label guarantees it fits.
+3. Check free disk space and close GPU-heavy applications before any manual download. Do not download weights as part of app startup or CI.
+4. Start with the smallest supported frame count and resolution, record peak VRAM/RAM and elapsed time, decode the resulting video, and stop if the process swaps heavily or runs out of memory.
+5. If it cannot render reliably, keep video generation behind an explicit optional provider interface and develop against user-supplied sample clips. Hosted generation remains opt-in and must never be a silent fallback.
+
+A hardware preflight cannot promise this machine will render any particular model. Confirm compatibility using the exact current model card and runtime docs before installing.
