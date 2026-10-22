@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # CI installs the API package, but the repository-level scripts directory is not a package.
 # Add the repository root explicitly so this test can import the standalone preflight script.
