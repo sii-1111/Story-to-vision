@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import platform
-import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -114,12 +113,22 @@ def assess_hardware(memory_bytes: int | None, gpus: list[dict[str, Any]]) -> dic
             "Start with a quantized/distilled LTX-family workflow at reduced resolution and "
             "short duration. Measure peak VRAM and render time before scaling up."
         )
-    elif max_vram is not None and max_vram >= 8:
-        tier = "constrained_local_video_candidate"
-        summary = (
-            "Only small/quantized workflows may fit, with compromises in resolution, frames, "
-            "or speed. Run a tiny test before downloading large checkpoints."
-        )
+    elif max_vram is not None and max_vram >= 4:
+        tier = "very_low_vram_experimental_only"
+        if memory_gib is not None and memory_gib < 16:
+            summary = (
+                "Do not download a large video checkpoint yet. With 4–6 GiB VRAM and under "
+                "16 GiB system RAM, full local video generation is a high-risk experiment. "
+                "If testing is essential, investigate a quantized CogVideoX-2B Diffusers path "
+                "with CPU offload, but expect slow generation, memory pressure, and possible "
+                "out-of-memory failures. Prefer a tiny benchmark only after checking disk space."
+            )
+        else:
+            summary = (
+                "Only experimental quantized, CPU-offloaded workflows are worth investigating. "
+                "Check exact checkpoint/runtime requirements and start with a tiny test; no "
+                "model is confirmed compatible by this preflight."
+            )
     elif system == "Darwin" and platform.machine().lower() in {"arm64", "aarch64"}:
         tier = "apple_silicon_needs_runtime_check"
         summary = (
