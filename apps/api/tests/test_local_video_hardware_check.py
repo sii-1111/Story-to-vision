@@ -1,4 +1,12 @@
-from scripts.local_video_hardware_check import assess_hardware
+from pathlib import Path
+import sys
+
+# CI installs the API package, but the repository-level scripts directory is not a package.
+# Add the repository root explicitly so this test can import the standalone preflight script.
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from scripts.local_video_hardware_check import assess_hardware  # noqa: E402
 
 
 def test_four_gib_gpu_is_experimental_only_with_low_system_memory() -> None:
